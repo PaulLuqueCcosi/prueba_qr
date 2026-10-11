@@ -1,0 +1,221 @@
+openapi: 3.0.3
+info:
+  title: node-api - Matrix statistics
+  version: 0.1.0
+  description: |
+    Computes statistics over the matrices `original`, `q` and `r`.
+
+    **Statistics scope.** `max`, `min`, `average` and `sum` are computed over
+    **all values of the three matrices together**. `isDiagonal` is evaluated
+    **per matrix**.
+
+    **Diagonal rule.** A matrix is diagonal when every element outside the main
+    diagonal satisfies `|x| <= tolerance`, also for rectangular matrices. The
+    tolerance defaults to `1e-9` and is configured with the `DIAGONAL_TOLERANCE`
+    environment variable.
+
+    **Shapes.** When the matrices come from a QR factorization of an m x n
+    matrix, `q` is m x m and `r` is m x n. This API only requires each matrix to
+    be non-empty and rectangular; it does not check the Q/R relationship.
+
+    Every error uses the same body: `{ "error": { "code", "message" } }`.
+servers:
+  - url: http://localhost:8081
+    description: Local development (default PORT)
+tags:
+  - name: Statistics
+  - name: Health
+paths:
+  /api/v1/statistics:
+    post:
+      tags: [Statistics]
+      operationId: calculateStatistics
+      summary: Calculate statistics for the original, q and r matrices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatisticsRequest'
+            examples:
+              small:
+                summary: 2x2 example
+                value:
+                  matrices:
+                    original: [[1, 2], [3, 4]]
+                    q: [[1, 0], [0, 1]]
+                    r: [[5, 6], [0, 7]]
+      responses:
+        '200':
+          description: Statistics over all values of the three matrices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Statistics'
+              examples:
+                small:
+                  summary: Result for the 2x2 request (q is the identity, hence diagonal)
+                  value:
+                    max: 7
+                    min: 0
+                    average: 2.5
+                    sum: 30
+                    isDiagonal:
+                      original: false
+                      q: true
+                      r: false
+                    anyDiagonal: true
+        '400':
+          description: The body is not valid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_JSON
+                  message: Request body is not valid JSON
+        '413':
+          description: The body is larger than 1 MB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: PAYLOAD_TOO_LARGE
+                  message: Request body exceeds the size limit
+        '422':
+          description: A matrix is missing, empty, ragged or contains non-numeric values.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidMatrix:
+                  summary: Ragged matrix
+                  value:
+                    error:
+                      code: INVALID_MATRIX
+                      message: 'Matrix "original" must be rectangular: row 1 does not have 2 columns'
+        '500':
+          description: Unexpected error. The cause is logged, never returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  message: Unexpected error
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Liveness check
+      responses:
+        '200':
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: |
+        Any unknown route (for example `GET /nope`) answers with this shape. It
+        is returned by every path that is not documented here.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Route not found
+  schemas:
+    Matrix:
+      type: array
+      description: Non-empty rectangular matrix as an array of rows. All rows have the same length.
+      minItems: 1
+      items:
+        type: array
+        minItems: 1
+        items:
+          type: number
+      example: [[1, 2], [3, 4]]
+    StatisticsRequest:
+      type: object
+      required: [matrices]
+      properties:
+        matrices:
+          type: object
+          required: [original, q, r]
+          properties:
+            original:
+              $ref: '#/components/schemas/Matrix'
+            q:
+              $ref: '#/components/schemas/Matrix'
+            r:
+              $ref: '#/components/schemas/Matrix'
+    DiagonalFlags:
+      type: object
+      required: [original, q, r]
+      properties:
+        original:
+          type: boolean
+        q:
+          type: boolean
+        r:
+          type: boolean
+    Statistics:
+      type: object
+      required: [max, min, average, sum, isDiagonal, anyDiagonal]
+      properties:
+        max:
+          type: number
+          description: Largest value across the three matrices.
+        min:
+          type: number
+          description: Smallest value across the three matrices.
+        average:
+          type: number
+          description: Arithmetic mean of all values of the three matrices.
+        sum:
+          type: number
+          description: Sum of all values of the three matrices.
+        isDiagonal:
+          $ref: '#/components/schemas/DiagonalFlags'
+        anyDiagonal:
+          type: boolean
+          description: True when at least one of the three matrices is diagonal.
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_JSON
+                - INVALID_MATRIX
+                - NOT_FOUND
+                - PAYLOAD_TOO_LARGE
+                - INTERNAL_ERROR
+            message:
+              type: string
