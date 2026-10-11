@@ -1,4 +1,4 @@
-import { Dices, Eraser } from 'lucide-react'
+import { Braces, Dices, Eraser } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorAlert } from '@/components/error-alert'
@@ -9,17 +9,22 @@ import { SectionCard } from '@/components/section-card'
 import { StatisticsView } from '@/components/statistics-view'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
 import { useApi } from '@/hooks/use-api'
 import { createApiClient } from '@/lib/api-client'
 import type { AppConfig } from '@/lib/config'
 import { MATRIX_EXAMPLES } from '@/lib/examples'
 import {
+  MAX_SIZE,
   createGrid,
   gridToMatrix,
   jsonToGrid,
+  matrixToGrid,
   randomGrid,
+  sizeOverLimit,
   type Grid,
 } from '@/lib/grid'
+import { parseMatrix } from '@/lib/matrix'
 import { translateIssue } from '@/lib/issue'
 import type { Matrix } from '@/lib/types'
 
@@ -30,6 +35,9 @@ export function QrPanel({ config }: { config: AppConfig }) {
     jsonToGrid(MATRIX_EXAMPLES[0].value),
   )
   const [invalid, setInvalid] = useState<[number, number][]>([])
+  const [jsonOpen, setJsonOpen] = useState(false)
+  const [jsonText, setJsonText] = useState('')
+  const [jsonError, setJsonError] = useState<string | null>(null)
   const { data, error, loading, run, fail } = useApi(
     (token: string, matrix: Matrix) => client.computeQr(token, matrix),
   )
@@ -38,6 +46,26 @@ export function QrPanel({ config }: { config: AppConfig }) {
   const update = (next: Grid) => {
     setGrid(next)
     setInvalid([])
+  }
+
+  // Loads a pasted JSON matrix into the grid, rejecting non-rectangular input
+  // and matrices past the frontend cap (the APIs themselves have no such cap).
+  const loadJson = () => {
+    const parsed = parseMatrix(jsonText)
+    if (!parsed.ok) return setJsonError(translateIssue(t, parsed.issue))
+    const over = sizeOverLimit(parsed.matrix)
+    if (over) {
+      return setJsonError(
+        translateIssue(t, {
+          key: 'issues.tooLarge',
+          params: { rows: over[0], columns: over[1], max: MAX_SIZE },
+        }),
+      )
+    }
+    update(matrixToGrid(parsed.matrix))
+    setJsonError(null)
+    setJsonText('')
+    setJsonOpen(false)
   }
 
   const submit = () => {
@@ -81,7 +109,58 @@ export function QrPanel({ config }: { config: AppConfig }) {
                 <Eraser aria-hidden />
                 {t('qr.clear')}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-expanded={jsonOpen}
+                onClick={() => setJsonOpen((open) => !open)}
+              >
+                <Braces aria-hidden />
+                {t('grid.pasteJson')}
+              </Button>
             </div>
+            {jsonOpen && (
+              <div className="space-y-1.5 rounded-md border p-3">
+                <p className="text-sm font-medium">
+                  {t('grid.pasteJsonTitle')}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {t('grid.pasteJsonDescription')}
+                </p>
+                <Textarea
+                  aria-label={t('grid.pasteJsonTitle')}
+                  className="font-mono"
+                  rows={5}
+                  placeholder={t('grid.pasteJsonPlaceholder')}
+                  value={jsonText}
+                  onChange={(e) => setJsonText(e.target.value)}
+                />
+                {jsonError && (
+                  <p className="text-destructive text-xs" role="alert">
+                    {jsonError}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    disabled={jsonText.trim() === ''}
+                    onClick={loadJson}
+                  >
+                    {t('grid.loadJson')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setJsonOpen(false)
+                      setJsonError(null)
+                    }}
+                  >
+                    {t('grid.cancel')}
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <p className="text-sm font-medium">{t('qr.examples')}</p>
               <div className="flex flex-wrap gap-2">

@@ -5,7 +5,12 @@ import type { Matrix } from './types'
 export type Grid = string[][]
 
 export const MIN_SIZE = 1
-export const MAX_SIZE = 10
+/**
+ * Frontend-only cap on grid size: it keeps the browser from choking on a huge
+ * grid of inputs. The APIs do not limit rows/columns (only a 1 MB request body),
+ * so this is purely a UI guardrail, not a system limit.
+ */
+export const MAX_SIZE = 100
 
 export type GridResult =
   | { ok: true; matrix: Matrix }
@@ -15,6 +20,13 @@ const NUMBER_PATTERN = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i
 
 export function clampSize(n: number): number {
   return Math.min(MAX_SIZE, Math.max(MIN_SIZE, Math.trunc(n)))
+}
+
+/** Rows/columns of a matrix, or null when either side is over the frontend cap. */
+export function sizeOverLimit(matrix: Matrix): [number, number] | null {
+  const rows = matrix.length
+  const columns = matrix[0]?.length ?? 0
+  return rows > MAX_SIZE || columns > MAX_SIZE ? [rows, columns] : null
 }
 
 export function createGrid(rows: number, columns: number): Grid {

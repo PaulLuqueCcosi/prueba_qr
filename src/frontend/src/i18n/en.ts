@@ -89,7 +89,15 @@ export const en = {
     removeColumn: 'Remove column',
     matrixValues: 'Matrix values',
     cell: 'Row {{row}}, column {{column}}',
-    size: '{{rows}}x{{columns}} (max {{max}}x{{max}})',
+    size: '{{rows}}x{{columns}}',
+    sizeHint: 'Up to {{max}}x{{max}} (a frontend limit, not the APIs).',
+    pasteJson: 'Paste JSON',
+    pasteJsonTitle: 'Load matrix from JSON',
+    pasteJsonDescription:
+      'Paste a matrix as a JSON array of rows, e.g. [[1,2],[3,4]]. Handy for large matrices.',
+    pasteJsonPlaceholder: '[[1,2],[3,4]]',
+    loadJson: 'Load',
+    cancel: 'Cancel',
   },
   statisticsPanel: {
     inputTitle: 'Input matrices',
@@ -200,6 +208,8 @@ export const en = {
       '{{count}} empty cells: fill them in (first one at row {{row}}, column {{column}}).',
     invalidNumber:
       'Value at row {{row}}, column {{column}} is not a valid number. Use digits with an optional sign or decimal point.',
+    tooLarge:
+      'Matrix is {{rows}}x{{columns}}, over the {{max}}x{{max}} frontend limit. The APIs have no such limit; raise it in src/lib/grid.ts if you need more.',
   },
   language: {
     label: 'Language',

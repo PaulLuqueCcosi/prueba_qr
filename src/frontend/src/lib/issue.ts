@@ -14,6 +14,7 @@ export interface Issue {
     | 'issues.expectedObject'
     | 'issues.emptyCells'
     | 'issues.invalidNumber'
+    | 'issues.tooLarge'
   params?: Record<string, string | number>
   /** Optional prefix naming the offending field, e.g. "q". */
   field?: string

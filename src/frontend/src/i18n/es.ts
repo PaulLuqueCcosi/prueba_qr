@@ -91,7 +91,15 @@ export const es: Translation = {
     removeColumn: 'Quitar columna',
     matrixValues: 'Valores de la matriz',
     cell: 'Fila {{row}}, columna {{column}}',
-    size: '{{rows}}x{{columns}} (máx. {{max}}x{{max}})',
+    size: '{{rows}}x{{columns}}',
+    sizeHint: 'Hasta {{max}}x{{max}} (límite del frontend, no de las APIs).',
+    pasteJson: 'Pegar JSON',
+    pasteJsonTitle: 'Cargar matriz desde JSON',
+    pasteJsonDescription:
+      'Pega una matriz como arreglo JSON de filas, p. ej. [[1,2],[3,4]]. Útil para matrices grandes.',
+    pasteJsonPlaceholder: '[[1,2],[3,4]]',
+    loadJson: 'Cargar',
+    cancel: 'Cancelar',
   },
   statisticsPanel: {
     inputTitle: 'Matrices de entrada',
@@ -204,6 +212,8 @@ export const es: Translation = {
       '{{count}} celdas vacías: complétalas (la primera en la fila {{row}}, columna {{column}}).',
     invalidNumber:
       'El valor en la fila {{row}}, columna {{column}} no es un número válido. Usa dígitos con signo o punto decimal opcionales.',
+    tooLarge:
+      'La matriz es {{rows}}x{{columns}}, supera el límite de {{max}}x{{max}} del frontend. Las APIs no tienen ese límite; súbelo en src/lib/grid.ts si necesitas más.',
   },
   language: {
     label: 'Idioma',

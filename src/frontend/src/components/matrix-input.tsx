@@ -114,8 +114,11 @@ export function MatrixInput({ grid, onChange, invalid }: MatrixInputProps) {
           value={columns}
           onChange={(n) => onChange(resizeGrid(grid, rows, n))}
         />
-        <span className="text-muted-foreground text-xs">
-          {t('grid.size', { rows, columns, max: MAX_SIZE })}
+        <span
+          className="text-muted-foreground text-xs"
+          title={t('grid.sizeHint', { max: MAX_SIZE })}
+        >
+          {t('grid.size', { rows, columns })}
         </span>
       </div>
       {/* The grid scrolls inside this box so a wide matrix never scrolls the page. */}

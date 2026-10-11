@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_SIZE,
   clampSize,
   gridToMatrix,
   jsonToGrid,
   matrixToGrid,
   randomGrid,
   resizeGrid,
+  sizeOverLimit,
 } from './grid'
 
 describe('gridToMatrix', () => {
@@ -75,8 +77,8 @@ describe('resizeGrid', () => {
 
   it('truncates and clamps to the limits', () => {
     expect(resizeGrid([['1', '2']], 1, 1)).toEqual([['1']])
-    const big = resizeGrid([['1']], 99, 0)
-    expect(big).toHaveLength(10)
+    const big = resizeGrid([['1']], 999, 0)
+    expect(big).toHaveLength(100)
     expect(big[0]).toHaveLength(1)
     expect(clampSize(-3)).toBe(1)
   })
@@ -100,5 +102,22 @@ describe('randomGrid', () => {
   it('hits both ends of the range with an injected generator', () => {
     expect(randomGrid(1, 1, () => 0)).toEqual([['-9']])
     expect(randomGrid(1, 1, () => 0.999999)).toEqual([['9']])
+  })
+})
+
+describe('sizeOverLimit', () => {
+  it('returns null for a matrix within the cap', () => {
+    expect(sizeOverLimit([[1, 2]])).toBeNull()
+    const atLimit = Array.from({ length: MAX_SIZE }, () =>
+      Array.from({ length: MAX_SIZE }, () => 0),
+    )
+    expect(sizeOverLimit(atLimit)).toBeNull()
+  })
+
+  it('returns the shape when rows or columns exceed the cap', () => {
+    const tooWide = [Array.from({ length: MAX_SIZE + 1 }, () => 0)]
+    expect(sizeOverLimit(tooWide)).toEqual([1, MAX_SIZE + 1])
+    const tooTall = Array.from({ length: MAX_SIZE + 1 }, () => [0])
+    expect(sizeOverLimit(tooTall)).toEqual([MAX_SIZE + 1, 1])
   })
 })
