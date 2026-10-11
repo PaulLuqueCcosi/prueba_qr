@@ -10,6 +10,8 @@ try {
     logger.info('server listening', {
       port: config.port,
       diagonalTolerance: config.diagonalTolerance,
+      issuer: config.auth.issuer,
+      corsOrigins: config.corsOrigins,
     });
   });
 } catch (error) {

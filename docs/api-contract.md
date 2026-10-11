@@ -56,6 +56,16 @@ Response `200`: el objeto `statistics` de arriba.
 ### `GET /health`
 Response `200`: `{ "status": "ok" }`
 
+## Autenticación (JWT de Auth0)
+Las rutas protegidas exigen `Authorization: Bearer <access_token>`. Cada API valida el token por sí misma (firma RS256 con las claves públicas JWKS del tenant, `iss`, `aud`, `exp`/`nbf` con 5 s de tolerancia) y exige un scope:
+
+| Servicio | Ruta | Scope |
+|---|---|---|
+| go-api | `POST /api/v1/qr` | `qr:write` |
+| node-api | `POST /api/v1/statistics` | `statistics:read` |
+
+Son públicas `GET /health`, `GET /docs`, `GET /openapi.yaml` y los preflight CORS (`OPTIONS`). Si falta o es inválida la configuración de Auth0, el servicio no arranca.
+
 ## Documentación interactiva (Swagger)
 Cada API publica su especificación OpenAPI 3.0.3 en `GET /openapi.yaml` y una interfaz Swagger UI en `GET /docs` (go-api: `http://localhost:8080/docs`, node-api: `http://localhost:8081/docs`). Las specs son la versión ejecutable de este contrato y deben mantenerse alineadas con él.
 
@@ -72,6 +82,8 @@ Una matriz es diagonal si todo elemento fuera de la diagonal principal cumple `|
 | 400 | `INVALID_JSON` | JSON mal formado |
 | 422 | `INVALID_MATRIX` | Matriz vacía, filas de distinto largo o valores no numéricos |
 | 422 | `NON_FINITE_RESULT` | (go-api) El resultado de la factorización QR no es finito, p. ej. valores cercanos a 1e308 |
+| 401 | `UNAUTHORIZED` | Falta el header `Authorization`, el token está mal formado, la firma es inválida, `iss`/`aud` no coinciden o expiró. Incluye `WWW-Authenticate: Bearer` (con `error="invalid_token"` si se envió un token) |
+| 403 | `FORBIDDEN` | Token válido pero sin el scope requerido. Incluye `WWW-Authenticate: Bearer error="insufficient_scope", scope="<scope>"` |
 | 404 | `NOT_FOUND` | Ruta desconocida |
 | 413 | `PAYLOAD_TOO_LARGE` | Cuerpo de la petición mayor al límite (1 MB) |
 | 502 | `UPSTREAM_UNAVAILABLE` | go-api no pudo comunicarse con node-api |
@@ -83,3 +95,8 @@ Una matriz es diagonal si todo elemento fuera de la diagonal principal cumple `|
 | `PORT` | ambos | go-api `8080`, node-api `8081` |
 | `NODE_API_URL` | go-api | `http://localhost:8081` |
 | `DIAGONAL_TOLERANCE` | node-api | `1e-9` |
+| `AUTH0_DOMAIN` | ambos | obligatoria; solo hostname (p. ej. `dev-xxxx.us.auth0.com`). El issuer esperado es `https://<dominio>/` (con barra final) |
+| `AUTH0_AUDIENCE` | ambos | obligatoria; identificador de la API en Auth0 |
+| `CORS_ORIGINS` | ambos | `http://localhost:5173`; orígenes separados por comas, sin comodín |
+
+Cada servicio tiene su propio `.env.example` (`src/go-api/`, `src/node-api/` y `src/frontend/`).

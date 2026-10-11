@@ -2,6 +2,10 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import type { CalculateStatisticsPort } from '../../../application/ports/inbound/calculate-statistics.port.js';
 import type { LogFields, LoggerPort } from '../../../application/ports/outbound/logger.port.js';
+import {
+  InvalidTokenError,
+  type TokenVerifierPort,
+} from '../../../application/ports/outbound/token-verifier.port.js';
 import { createApp } from '../../../main/composition-root.js';
 
 interface LogEntry {
@@ -23,7 +27,23 @@ class FakeLogger implements LoggerPort {
   }
 }
 
-const config = { port: 0, diagonalTolerance: 1e-9 };
+const config = {
+  port: 0,
+  diagonalTolerance: 1e-9,
+  auth: {
+    domain: 'tenant.example.auth0.com',
+    issuer: 'https://tenant.example.auth0.com/',
+    audience: 'https://api.example.dev',
+  },
+  corsOrigins: ['http://localhost:5173'],
+};
+const AUTH = { Authorization: 'Bearer valid-token' };
+const fakeVerifier: TokenVerifierPort = {
+  async verify(token) {
+    if (token !== 'valid-token') throw new InvalidTokenError('invalid_signature');
+    return { subject: 'user-1', scopes: ['statistics:read'] };
+  },
+};
 const matrices = {
   original: [
     [1, 2],
@@ -41,7 +61,7 @@ const matrices = {
 
 function build(overrides: Parameters<typeof createApp>[1] = {}) {
   const logger = new FakeLogger();
-  const app = createApp(config, { logger, ...overrides });
+  const app = createApp(config, { logger, tokenVerifier: fakeVerifier, ...overrides });
   return { app, logger };
 }
 
@@ -53,7 +73,7 @@ function expectErrorBody(body: unknown, code: string): void {
 describe('POST /api/v1/statistics', () => {
   it('returns 200 with the statistics as JSON', async () => {
     const { app } = build();
-    const res = await request(app).post('/api/v1/statistics').send({ matrices });
+    const res = await request(app).post('/api/v1/statistics').set(AUTH).send({ matrices });
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/application\/json/);
@@ -75,11 +95,18 @@ describe('POST /api/v1/statistics', () => {
         [0, 1],
       ],
     };
-    const strict = await request(build().app).post('/api/v1/statistics').send({ matrices: noisy });
+    const strict = await request(build().app)
+      .post('/api/v1/statistics')
+      .set(AUTH)
+      .send({ matrices: noisy });
     const loose = await request(
-      createApp({ ...config, diagonalTolerance: 0.1 }, { logger: new FakeLogger() }),
+      createApp(
+        { ...config, diagonalTolerance: 0.1 },
+        { logger: new FakeLogger(), tokenVerifier: fakeVerifier },
+      ),
     )
       .post('/api/v1/statistics')
+      .set(AUTH)
       .send({ matrices: noisy });
 
     expect(strict.body.isDiagonal.original).toBe(false);
@@ -123,20 +150,23 @@ describe('POST /api/v1/statistics', () => {
     ['a row that is not an array', { ...matrices, original: [[1, 2], 5] }],
     ['a missing matrix', { original: matrices.original, q: matrices.q }],
   ])('returns 422 INVALID_MATRIX for %s', async (_label, bad) => {
-    const res = await request(build().app).post('/api/v1/statistics').send({ matrices: bad });
+    const res = await request(build().app)
+      .post('/api/v1/statistics')
+      .set(AUTH)
+      .send({ matrices: bad });
 
     expect(res.status).toBe(422);
     expectErrorBody(res.body, 'INVALID_MATRIX');
   });
 
   it('returns 422 when "matrices" is missing from the body', async () => {
-    const res = await request(build().app).post('/api/v1/statistics').send({});
+    const res = await request(build().app).post('/api/v1/statistics').set(AUTH).send({});
     expect(res.status).toBe(422);
     expectErrorBody(res.body, 'INVALID_MATRIX');
   });
 
   it('returns 422 for a JSON array body', async () => {
-    const res = await request(build().app).post('/api/v1/statistics').send([1, 2]);
+    const res = await request(build().app).post('/api/v1/statistics').set(AUTH).send([1, 2]);
     expect(res.status).toBe(422);
     expectErrorBody(res.body, 'INVALID_MATRIX');
   });
@@ -145,6 +175,7 @@ describe('POST /api/v1/statistics', () => {
     const raw = '{"matrices":{"original":[[1e999]],"q":[[1]],"r":[[1]]}}';
     const res = await request(build().app)
       .post('/api/v1/statistics')
+      .set(AUTH)
       .set('Content-Type', 'application/json')
       .send(raw);
     expect(res.status).toBe(422);
@@ -154,6 +185,7 @@ describe('POST /api/v1/statistics', () => {
   it('names the offending matrix and position in the message', async () => {
     const res = await request(build().app)
       .post('/api/v1/statistics')
+      .set(AUTH)
       .send({ matrices: { ...matrices, r: [[1, 2], [3]] } });
     expect(res.body.error.message).toMatch(/"r".*row 1/);
   });
@@ -161,6 +193,7 @@ describe('POST /api/v1/statistics', () => {
   it('returns 400 INVALID_JSON for malformed JSON', async () => {
     const res = await request(build().app)
       .post('/api/v1/statistics')
+      .set(AUTH)
       .set('Content-Type', 'application/json')
       .send('{"matrices": ');
 
@@ -176,6 +209,7 @@ describe('POST /api/v1/statistics', () => {
 
     const res = await request(build().app)
       .post('/api/v1/statistics')
+      .set(AUTH)
       .set('Content-Type', 'application/json')
       .send(huge);
 
@@ -191,7 +225,7 @@ describe('POST /api/v1/statistics', () => {
     };
     const { app, logger } = build({ calculateStatistics: boom });
 
-    const res = await request(app).post('/api/v1/statistics').send({ matrices });
+    const res = await request(app).post('/api/v1/statistics').set(AUTH).send({ matrices });
 
     expect(res.status).toBe(500);
     expectErrorBody(res.body, 'INTERNAL_ERROR');
@@ -209,6 +243,7 @@ describe('POST /api/v1/statistics', () => {
     };
     const res = await request(build({ calculateStatistics: boom }).app)
       .post('/api/v1/statistics')
+      .set(AUTH)
       .send({ matrices });
     expect(res.status).toBe(500);
     expectErrorBody(res.body, 'INTERNAL_ERROR');
@@ -231,6 +266,7 @@ describe('POST /api/v1/statistics', () => {
     };
     const res = await request(build({ calculateStatistics: spy }).app)
       .post('/api/v1/statistics')
+      .set(AUTH)
       .send({ matrices });
     expect(res.status).toBe(200);
     expect(received).toEqual([{ matrices }]);
@@ -287,7 +323,7 @@ describe('request logging', () => {
     const { app, logger } = build();
 
     await request(app).get('/health');
-    await request(app).post('/api/v1/statistics').send({ matrices });
+    await request(app).post('/api/v1/statistics').set(AUTH).send({ matrices });
     await request(app).get('/missing');
 
     const requests = logger.entries.filter((e) => e.message === 'request');
@@ -309,6 +345,7 @@ describe('request logging', () => {
     const { app, logger } = build();
     await request(app)
       .post('/api/v1/statistics')
+      .set(AUTH)
       .set('Content-Type', 'application/json')
       .send('{bad');
     const entry = logger.entries.find((e) => e.message === 'request');

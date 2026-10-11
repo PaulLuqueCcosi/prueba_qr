@@ -23,7 +23,13 @@ const walk = (node) => {
 };
 walk(spec);
 
-const app = createApp({ port: 0, diagonalTolerance: 1e-9 }, { logger: { info() {}, error() {} } });
+const config = {
+  port: 0,
+  diagonalTolerance: 1e-9,
+  auth: { domain: 'example.auth0.com', issuer: 'https://example.auth0.com/', audience: 'check' },
+  corsOrigins: [],
+};
+const app = createApp(config, { logger: { info() {}, warn() {}, error() {} } });
 const server = app.listen(0);
 const base = `http://localhost:${server.address().port}`;
 

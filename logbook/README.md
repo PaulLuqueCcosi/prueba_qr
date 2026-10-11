@@ -11,3 +11,4 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [05](05-go-api-mvp.md) | go-api: versión mínima funcional | 2026-10-11 | 1 |
 | [06](06-frontend-scope.md) | Alcance del frontend | 2026-10-11 | 2 |
 | [07](07-automated-tests.md) | Pruebas automatizadas | 2026-10-11 | 2 |
+| [08](08-node-api-jwt.md) | node-api: autenticación con JWT de Auth0 | 2026-10-11 | 4 |

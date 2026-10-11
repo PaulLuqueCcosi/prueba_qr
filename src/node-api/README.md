@@ -74,19 +74,35 @@ La fuente única es `openapi/openapi.yaml` (escrita a mano). Se sirve desde el a
 
 ## Variables de entorno
 
-| Variable             | Por defecto | Descripción                                                                                             |
-| -------------------- | ----------- | ------------------------------------------------------------------------------------------------------- |
-| `PORT`               | `8081`      | Puerto HTTP                                                                                             |
-| `DIAGONAL_TOLERANCE` | `1e-9`      | Un elemento fuera de la diagonal cuenta como cero si `\|x\| <= tolerancia`. Debe ser un número positivo |
+| Variable             | Por defecto             | Descripción                                                                                             |
+| -------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `PORT`               | `8081`                  | Puerto HTTP                                                                                             |
+| `AUTH0_DOMAIN`       | obligatoria             | Hostname del tenant de Auth0 (sin `https://`). El issuer se deriva como `https://<dominio>/`            |
+| `AUTH0_AUDIENCE`     | obligatoria             | Audience (identificador de la API) que deben tener los tokens                                           |
+| `CORS_ORIGINS`       | `http://localhost:5173` | Orígenes permitidos, separados por comas. No admite `*`                                                 |
+| `DIAGONAL_TOLERANCE` | `1e-9`                  | Un elemento fuera de la diagonal cuenta como cero si `\|x\| <= tolerancia`. Debe ser un número positivo |
+
+## Seguridad (JWT)
+
+`POST /api/v1/statistics` exige `Authorization: Bearer <token>` con el scope `statistics:read`. La API valida el token ella misma (defensa en profundidad):
+
+- Firma con las claves públicas del tenant (`/.well-known/jwks.json`, en caché con timeout de 5 s y cooldown de 30 s). No hay ningún secreto en la API.
+- Solo `RS256` (bloquea `alg: none` y la confusión de algoritmos), `iss`, `aud`, `exp` obligatorio y `nbf`, con 5 s de tolerancia.
+- `401 UNAUTHORIZED` si falta o es inválido el token; `403 FORBIDDEN` si falta el scope. El cuerpo nunca revela la causa ni el token; los logs solo llevan un código de motivo.
+- Públicos: `/health`, `/docs`, `/openapi.yaml` y los preflight `OPTIONS`.
+- Sin `AUTH0_DOMAIN`/`AUTH0_AUDIENCE` válidos el proceso termina con código 1.
+
+Hexagonal: el puerto `TokenVerifierPort` (`application/ports/outbound`) lo implementa `JoseTokenVerifier` (`adapters/outbound/auth`, librería `jose`); los middleware `authenticate`, `require-scope` y `cors` viven en `adapters/inbound/http/middleware`. Los tests inyectan un verificador falso con `createApp(config, { tokenVerifier })`, y el adaptador real se prueba con claves RSA generadas en local (sin red).
 
 ## Ejemplo
 
 ```bash
 curl -X POST http://localhost:8081/api/v1/statistics \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"matrices":{"original":[[1,2],[3,4]],"q":[[1,0],[0,1]],"r":[[5,6],[0,7]]}}'
 
 curl http://localhost:8081/health
 ```
 
-Errores: `400 INVALID_JSON`, `404 NOT_FOUND`, `413 PAYLOAD_TOO_LARGE` (cuerpo mayor a 1 MB), `422 INVALID_MATRIX`, `500 INTERNAL_ERROR`.
+Errores: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `400 INVALID_JSON`, `404 NOT_FOUND`, `413 PAYLOAD_TOO_LARGE` (cuerpo mayor a 1 MB), `422 INVALID_MATRIX`, `500 INTERNAL_ERROR`.

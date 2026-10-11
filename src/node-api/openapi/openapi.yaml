@@ -18,6 +18,11 @@ info:
     matrix, `q` is m x m and `r` is m x n. This API only requires each matrix to
     be non-empty and rectangular; it does not check the Q/R relationship.
 
+    **Authentication.** `POST /api/v1/statistics` requires an Auth0 access token
+    (`Authorization: Bearer <jwt>`, RS256) whose audience is this API and that
+    carries the scope `statistics:read`. `GET /health`, `/docs` and
+    `/openapi.yaml` are public.
+
     Every error uses the same body: `{ "error": { "code", "message" } }`.
 servers:
   - url: http://localhost:8081
@@ -30,6 +35,8 @@ paths:
     post:
       tags: [Statistics]
       operationId: calculateStatistics
+      security:
+        - bearerAuth: [statistics:read]
       summary: Calculate statistics for the original, q and r matrices
       requestBody:
         required: true
@@ -75,6 +82,37 @@ paths:
                 error:
                   code: INVALID_JSON
                   message: Request body is not valid JSON
+        '401':
+          description: Missing, malformed, expired or otherwise invalid access token.
+          headers:
+            WWW-Authenticate:
+              description: Bearer challenge. Carries `error="invalid_token"` when a token was sent.
+              schema:
+                type: string
+              example: Bearer error="invalid_token"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: Authentication required
+        '403':
+          description: The token is valid but lacks the scope `statistics:read`.
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+              example: Bearer error="insufficient_scope", scope="statistics:read"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: Insufficient scope for this resource
         '413':
           description: The body is larger than 1 MB.
           content:
@@ -113,6 +151,7 @@ paths:
       tags: [Health]
       operationId: getHealth
       summary: Liveness check
+      security: []
       responses:
         '200':
           description: The service is up.
@@ -125,6 +164,12 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Auth0 access token (RS256) issued for this API's audience.
   responses:
     NotFound:
       description: |
@@ -214,6 +259,8 @@ components:
               enum:
                 - INVALID_JSON
                 - INVALID_MATRIX
+                - UNAUTHORIZED
+                - FORBIDDEN
                 - NOT_FOUND
                 - PAYLOAD_TOO_LARGE
                 - INTERNAL_ERROR
