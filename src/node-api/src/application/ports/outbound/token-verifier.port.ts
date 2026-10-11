@@ -1,6 +1,5 @@
 export interface VerifiedToken {
   subject: string;
-  scopes: string[];
 }
 
 // Short, stable codes: safe to log and never include token content.

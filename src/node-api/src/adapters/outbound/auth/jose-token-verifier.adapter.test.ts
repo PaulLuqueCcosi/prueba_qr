@@ -10,8 +10,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { InvalidTokenError } from '../../../application/ports/outbound/token-verifier.port.js';
 import { JoseTokenVerifier } from './jose-token-verifier.adapter.js';
 
-const ISSUER = 'https://tenant.example.auth0.com/';
-const AUDIENCE = 'https://api.example.dev';
+const ISSUER = 'https://tenant.example.logto.app/oidc';
+const AUDIENCE = 'app-id';
 
 let privateKey: CryptoKey;
 let otherPrivateKey: CryptoKey;
@@ -19,11 +19,11 @@ let publicJwk: JWK;
 let verifier: JoseTokenVerifier;
 
 beforeAll(async () => {
-  const pair = await generateKeyPair('RS256');
-  const other = await generateKeyPair('RS256');
+  const pair = await generateKeyPair('ES384');
+  const other = await generateKeyPair('ES384');
   privateKey = pair.privateKey;
   otherPrivateKey = other.privateKey;
-  publicJwk = { ...(await exportJWK(pair.publicKey)), kid: 'k1', alg: 'RS256', use: 'sig' };
+  publicJwk = { ...(await exportJWK(pair.publicKey)), kid: 'k1', alg: 'ES384', use: 'sig' };
   verifier = new JoseTokenVerifier({
     issuer: ISSUER,
     audience: AUDIENCE,
@@ -37,14 +37,12 @@ interface Overrides {
   audience?: string;
   expiresAt?: number | string;
   notBefore?: number | string;
-  scope?: string | null;
 }
 
 async function sign(o: Overrides = {}): Promise<string> {
-  const claims = o.scope === null ? {} : { scope: o.scope ?? 'statistics:read' };
-  const jwt = new SignJWT(claims)
-    .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
-    .setSubject('auth0|user1')
+  const jwt = new SignJWT({})
+    .setProtectedHeader({ alg: 'ES384', kid: 'k1' })
+    .setSubject('user1')
     .setIssuer(o.issuer ?? ISSUER)
     .setAudience(o.audience ?? AUDIENCE)
     .setIssuedAt()
@@ -66,18 +64,12 @@ async function reasonOf(token: string): Promise<string | undefined> {
 const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
 
 describe('JoseTokenVerifier', () => {
-  it('accepts a valid token and returns subject and scopes', async () => {
-    const result = await verifier.verify(await sign());
-    expect(result).toEqual({ subject: 'auth0|user1', scopes: ['statistics:read'] });
+  it('accepts a valid token and returns the subject', async () => {
+    expect(await verifier.verify(await sign())).toEqual({ subject: 'user1' });
   });
 
-  it('parses a space-separated scope claim into several scopes', async () => {
-    const result = await verifier.verify(await sign({ scope: 'openid  qr:write statistics:read' }));
-    expect(result.scopes).toEqual(['openid', 'qr:write', 'statistics:read']);
-  });
-
-  it('returns no scopes when the claim is absent', async () => {
-    expect((await verifier.verify(await sign({ scope: null }))).scopes).toEqual([]);
+  it('rejects an ID token issued for another application (aud mismatch)', async () => {
+    expect(await reasonOf(await sign({ audience: 'another-app-id' }))).toBe('invalid_claims');
   });
 
   it('rejects an expired token', async () => {
@@ -112,7 +104,7 @@ describe('JoseTokenVerifier', () => {
 
   it('rejects a token without exp', async () => {
     const token = await new SignJWT({})
-      .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+      .setProtectedHeader({ alg: 'ES384', kid: 'k1' })
       .setSubject('u')
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
@@ -128,7 +120,7 @@ describe('JoseTokenVerifier', () => {
 
   it('rejects algorithm confusion: HS256 signed with the public key as secret', async () => {
     const secret = new TextEncoder().encode(JSON.stringify(publicJwk));
-    const token = await new SignJWT({ scope: 'statistics:read' })
+    const token = await new SignJWT({})
       .setProtectedHeader({ alg: 'HS256', kid: 'k1' })
       .setSubject('attacker')
       .setIssuer(ISSUER)
@@ -144,7 +136,7 @@ describe('JoseTokenVerifier', () => {
 
   it('rejects a token whose kid is not in the key set', async () => {
     const token = await new SignJWT({})
-      .setProtectedHeader({ alg: 'RS256', kid: 'unknown' })
+      .setProtectedHeader({ alg: 'ES384', kid: 'unknown' })
       .setSubject('u')
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)

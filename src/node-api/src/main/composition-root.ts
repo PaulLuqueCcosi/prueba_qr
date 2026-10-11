@@ -28,7 +28,7 @@ export function createApp(config: EnvConfig, overrides: AppOverrides = {}): Expr
     new JoseTokenVerifier({
       issuer: config.auth.issuer,
       audience: config.auth.audience,
-      keySet: createRemoteKeySet(config.auth.domain),
+      keySet: createRemoteKeySet(config.auth.jwksUri),
     });
   return createHttpApp({
     calculateStatistics,

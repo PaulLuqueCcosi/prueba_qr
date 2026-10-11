@@ -1,6 +1,5 @@
 import express, { Router, type RequestHandler } from 'express';
 import type { CalculateStatisticsPort } from '../../../../application/ports/inbound/calculate-statistics.port.js';
-import { requireScope } from '../middleware/require-scope.middleware.js';
 import { healthController } from '../controllers/health.controller.js';
 import { createStatisticsController } from '../controllers/statistics.controller.js';
 
@@ -14,7 +13,6 @@ export function createRouter(
   router.post(
     '/api/v1/statistics',
     authenticate,
-    requireScope('statistics:read'),
     express.json({ limit: '1mb' }),
     createStatisticsController(calculateStatistics),
   );

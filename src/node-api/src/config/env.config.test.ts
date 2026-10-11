@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { loadEnvConfig } from './env.config.js';
 
-const auth = { AUTH0_DOMAIN: 'tenant.us.auth0.com', AUTH0_AUDIENCE: 'https://api.example.dev' };
+const auth = {
+  LOGTO_ENDPOINT: 'https://tenant.logto.app',
+  LOGTO_APP_ID: 'app-id',
+};
 
 describe('loadEnvConfig', () => {
   it('uses defaults when optional variables are unset', () => {
@@ -9,9 +12,10 @@ describe('loadEnvConfig', () => {
       port: 8081,
       diagonalTolerance: 1e-9,
       auth: {
-        domain: 'tenant.us.auth0.com',
-        issuer: 'https://tenant.us.auth0.com/',
-        audience: 'https://api.example.dev',
+        endpoint: 'https://tenant.logto.app',
+        issuer: 'https://tenant.logto.app/oidc',
+        jwksUri: 'https://tenant.logto.app/oidc/jwks',
+        audience: 'app-id',
       },
       corsOrigins: ['http://localhost:5173'],
     });
@@ -54,29 +58,31 @@ describe('loadEnvConfig', () => {
   );
 
   describe('auth', () => {
-    it('requires AUTH0_DOMAIN', () => {
-      expect(() => loadEnvConfig({ AUTH0_AUDIENCE: 'x' })).toThrow(/AUTH0_DOMAIN is required/);
-      expect(() => loadEnvConfig({ ...auth, AUTH0_DOMAIN: '  ' })).toThrow(/AUTH0_DOMAIN/);
+    it('requires LOGTO_ENDPOINT', () => {
+      expect(() => loadEnvConfig({ LOGTO_APP_ID: 'x' })).toThrow(/LOGTO_ENDPOINT is required/);
+      expect(() => loadEnvConfig({ ...auth, LOGTO_ENDPOINT: '  ' })).toThrow(/LOGTO_ENDPOINT/);
     });
 
-    it('requires AUTH0_AUDIENCE', () => {
-      expect(() => loadEnvConfig({ AUTH0_DOMAIN: 'tenant.auth0.com' })).toThrow(
-        /AUTH0_AUDIENCE is required/,
+    it('requires LOGTO_APP_ID', () => {
+      expect(() => loadEnvConfig({ LOGTO_ENDPOINT: 'https://tenant.logto.app' })).toThrow(
+        /LOGTO_APP_ID is required/,
       );
     });
 
     it.each([
-      'https://tenant.auth0.com',
-      'tenant.auth0.com/',
-      'tenant',
-      'a b.auth0.com',
-      'x.com:443',
-    ])('rejects AUTH0_DOMAIN "%s" (hostname only)', (domain) => {
-      expect(() => loadEnvConfig({ ...auth, AUTH0_DOMAIN: domain })).toThrow(/AUTH0_DOMAIN/);
+      'tenant.logto.app',
+      'https://tenant.logto.app/oidc',
+      'https://tenant.logto.app/?a=1',
+      'ftp://tenant.logto.app',
+      'not a url',
+    ])('rejects LOGTO_ENDPOINT "%s" (plain origin only)', (endpoint) => {
+      expect(() => loadEnvConfig({ ...auth, LOGTO_ENDPOINT: endpoint })).toThrow(/LOGTO_ENDPOINT/);
     });
 
-    it('derives the issuer with a trailing slash', () => {
-      expect(loadEnvConfig(auth).auth.issuer).toBe('https://tenant.us.auth0.com/');
+    it('derives issuer and JWKS URI, ignoring a trailing slash', () => {
+      const config = loadEnvConfig({ ...auth, LOGTO_ENDPOINT: 'https://tenant.logto.app/' }).auth;
+      expect(config.issuer).toBe('https://tenant.logto.app/oidc');
+      expect(config.jwksUri).toBe('https://tenant.logto.app/oidc/jwks');
     });
   });
 

@@ -1,7 +1,11 @@
 export interface AuthConfig {
-  domain: string;
-  // Derived, with trailing slash: Auth0 puts exactly this string in the `iss` claim.
+  // Logto tenant endpoint without trailing slash, e.g. https://<tenant>.logto.app
+  endpoint: string;
+  // Derived: Logto puts exactly `${endpoint}/oidc` (no trailing slash) in the `iss` claim.
   issuer: string;
+  // Derived: where the tenant publishes its signing keys.
+  jwksUri: string;
+  // The SPA's Logto application id: Logto sets it as the ID token `aud`.
   audience: string;
 }
 
@@ -20,7 +24,7 @@ export function loadEnvConfig(env: NodeJS.ProcessEnv = process.env): EnvConfig {
   return {
     port: parsePort(env['PORT']),
     diagonalTolerance: parseTolerance(env['DIAGONAL_TOLERANCE']),
-    auth: parseAuth(env['AUTH0_DOMAIN'], env['AUTH0_AUDIENCE']),
+    auth: parseAuth(env['LOGTO_ENDPOINT'], env['LOGTO_APP_ID']),
     corsOrigins: parseCorsOrigins(env['CORS_ORIGINS']),
   };
 }
@@ -45,16 +49,29 @@ function parseTolerance(raw: string | undefined): number {
 }
 
 // No defaults: running without auth settings must be impossible (fail closed).
-function parseAuth(rawDomain: string | undefined, rawAudience: string | undefined): AuthConfig {
-  const domain = rawDomain?.trim() ?? '';
-  if (domain === '') throw new Error('AUTH0_DOMAIN is required');
-  // Hostname only: a scheme or path would silently build a wrong issuer.
-  if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(domain)) {
-    throw new Error(`AUTH0_DOMAIN must be a hostname without scheme or path, got "${domain}"`);
+function parseAuth(rawEndpoint: string | undefined, rawAudience: string | undefined): AuthConfig {
+  const value = rawEndpoint?.trim() ?? '';
+  if (value === '') throw new Error('LOGTO_ENDPOINT is required');
+  // Origin only: a path or query would silently build a wrong issuer.
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(
+      `LOGTO_ENDPOINT must be a URL such as https://<tenant>.logto.app, got "${value}"`,
+    );
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || url.origin !== value.replace(/\/$/, '')) {
+    throw new Error(`LOGTO_ENDPOINT must be a plain origin without path, got "${value}"`);
   }
   const audience = rawAudience?.trim() ?? '';
-  if (audience === '') throw new Error('AUTH0_AUDIENCE is required');
-  return { domain, issuer: `https://${domain}/`, audience };
+  if (audience === '') throw new Error('LOGTO_APP_ID is required');
+  return {
+    endpoint: url.origin,
+    issuer: `${url.origin}/oidc`,
+    jwksUri: `${url.origin}/oidc/jwks`,
+    audience,
+  };
 }
 
 function parseCorsOrigins(raw: string | undefined): string[] {

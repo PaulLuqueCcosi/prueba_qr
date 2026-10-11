@@ -11,7 +11,12 @@ import { createApp } from '../../../main/composition-root.js';
 const config = {
   port: 0,
   diagonalTolerance: 1e-9,
-  auth: { domain: 't.auth0.com', issuer: 'https://t.auth0.com/', audience: 'aud' },
+  auth: {
+    endpoint: 'https://t.logto.app',
+    issuer: 'https://t.logto.app/oidc',
+    jwksUri: 'https://t.logto.app/oidc/jwks',
+    audience: 'aud',
+  },
   corsOrigins: ['http://localhost:5173'],
 };
 const body = {
@@ -19,8 +24,7 @@ const body = {
 };
 
 const identities: Record<string, VerifiedToken> = {
-  'good-token': { subject: 'u1', scopes: ['statistics:read'] },
-  'no-scope-token': { subject: 'u2', scopes: ['qr:write'] },
+  'good-token': { subject: 'u1' },
 };
 const verifier: TokenVerifierPort = {
   async verify(token) {
@@ -74,16 +78,7 @@ describe('authentication on POST /api/v1/statistics', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
-  it('returns 403 FORBIDDEN when the token is valid but lacks the scope', async () => {
-    const res = await post(build().app).set('Authorization', 'Bearer no-scope-token').send(body);
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({ error: { code: 'FORBIDDEN', message: expect.any(String) } });
-    expect(res.headers['www-authenticate']).toBe(
-      'Bearer error="insufficient_scope", scope="statistics:read"',
-    );
-  });
-
-  it('returns 200 when the token is valid and has the scope', async () => {
+  it('returns 200 for any valid token (no scopes: every authenticated user is authorized)', async () => {
     const res = await post(build().app).set('Authorization', 'Bearer good-token').send(body);
     expect(res.status).toBe(200);
   });

@@ -31,8 +31,9 @@ const config = {
   port: 0,
   diagonalTolerance: 1e-9,
   auth: {
-    domain: 'tenant.example.auth0.com',
-    issuer: 'https://tenant.example.auth0.com/',
+    endpoint: 'https://tenant.example.logto.app',
+    issuer: 'https://tenant.example.logto.app/oidc',
+    jwksUri: 'https://tenant.example.logto.app/oidc/jwks',
     audience: 'https://api.example.dev',
   },
   corsOrigins: ['http://localhost:5173'],
@@ -41,7 +42,7 @@ const AUTH = { Authorization: 'Bearer valid-token' };
 const fakeVerifier: TokenVerifierPort = {
   async verify(token) {
     if (token !== 'valid-token') throw new InvalidTokenError('invalid_signature');
-    return { subject: 'user-1', scopes: ['statistics:read'] };
+    return { subject: 'user-1' };
   },
 };
 const matrices = {

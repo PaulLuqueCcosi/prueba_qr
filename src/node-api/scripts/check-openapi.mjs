@@ -26,7 +26,12 @@ walk(spec);
 const config = {
   port: 0,
   diagonalTolerance: 1e-9,
-  auth: { domain: 'example.auth0.com', issuer: 'https://example.auth0.com/', audience: 'check' },
+  auth: {
+    endpoint: 'https://example.logto.app',
+    issuer: 'https://example.logto.app/oidc',
+    jwksUri: 'https://example.logto.app/oidc/jwks',
+    audience: 'check',
+  },
   corsOrigins: [],
 };
 const app = createApp(config, { logger: { info() {}, warn() {}, error() {} } });

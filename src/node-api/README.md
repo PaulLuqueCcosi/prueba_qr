@@ -74,25 +74,25 @@ La fuente única es `openapi/openapi.yaml` (escrita a mano). Se sirve desde el a
 
 ## Variables de entorno
 
-| Variable             | Por defecto             | Descripción                                                                                             |
-| -------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| `PORT`               | `8081`                  | Puerto HTTP                                                                                             |
-| `AUTH0_DOMAIN`       | obligatoria             | Hostname del tenant de Auth0 (sin `https://`). El issuer se deriva como `https://<dominio>/`            |
-| `AUTH0_AUDIENCE`     | obligatoria             | Audience (identificador de la API) que deben tener los tokens                                           |
-| `CORS_ORIGINS`       | `http://localhost:5173` | Orígenes permitidos, separados por comas. No admite `*`                                                 |
-| `DIAGONAL_TOLERANCE` | `1e-9`                  | Un elemento fuera de la diagonal cuenta como cero si `\|x\| <= tolerancia`. Debe ser un número positivo |
+| Variable             | Por defecto             | Descripción                                                                                                                             |
+| -------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`               | `8081`                  | Puerto HTTP                                                                                                                             |
+| `LOGTO_ENDPOINT`     | obligatoria             | Endpoint del tenant de Logto (solo origen, ej. `https://<tenant>.logto.app`). Issuer = `<endpoint>/oidc`, JWKS = `<endpoint>/oidc/jwks` |
+| `LOGTO_APP_ID`       | obligatoria             | Application ID de la SPA en Logto: el `aud` de los ID tokens que se aceptan                                                             |
+| `CORS_ORIGINS`       | `http://localhost:5173` | Orígenes permitidos, separados por comas. No admite `*`                                                                                 |
+| `DIAGONAL_TOLERANCE` | `1e-9`                  | Un elemento fuera de la diagonal cuenta como cero si `\|x\| <= tolerancia`. Debe ser un número positivo                                 |
 
 ## Seguridad (JWT)
 
-`POST /api/v1/statistics` exige `Authorization: Bearer <token>` con el scope `statistics:read`. La API valida el token ella misma (defensa en profundidad):
+`POST /api/v1/statistics` exige `Authorization: Bearer <token>` con el **ID token** de Logto del usuario (no hay scopes ni API resource: el plan Free de Logto no los incluye; cualquier usuario autenticado está autorizado). La API valida el token ella misma (defensa en profundidad):
 
-- Firma con las claves públicas del tenant (`/.well-known/jwks.json`, en caché con timeout de 5 s y cooldown de 30 s). No hay ningún secreto en la API.
-- Solo `RS256` (bloquea `alg: none` y la confusión de algoritmos), `iss`, `aud`, `exp` obligatorio y `nbf`, con 5 s de tolerancia.
-- `401 UNAUTHORIZED` si falta o es inválido el token; `403 FORBIDDEN` si falta el scope. El cuerpo nunca revela la causa ni el token; los logs solo llevan un código de motivo.
+- Firma con las claves públicas del tenant (`<endpoint>/oidc/jwks`, en caché con timeout de 5 s y cooldown de 30 s). No hay ningún secreto en la API.
+- Solo algoritmos asimétricos `ES384` (el que usa Logto por defecto), `ES256` y `RS256` (bloquea `alg: none` y la confusión de algoritmos), `iss`, `aud` (= `LOGTO_APP_ID`), `exp` obligatorio y `nbf`, con 5 s de tolerancia.
+- `401 UNAUTHORIZED` si falta o es inválido el token; El cuerpo nunca revela la causa ni el token; los logs solo llevan un código de motivo.
 - Públicos: `/health`, `/docs`, `/openapi.yaml` y los preflight `OPTIONS`.
-- Sin `AUTH0_DOMAIN`/`AUTH0_AUDIENCE` válidos el proceso termina con código 1.
+- Sin `LOGTO_ENDPOINT`/`LOGTO_APP_ID` válidos el proceso termina con código 1.
 
-Hexagonal: el puerto `TokenVerifierPort` (`application/ports/outbound`) lo implementa `JoseTokenVerifier` (`adapters/outbound/auth`, librería `jose`); los middleware `authenticate`, `require-scope` y `cors` viven en `adapters/inbound/http/middleware`. Los tests inyectan un verificador falso con `createApp(config, { tokenVerifier })`, y el adaptador real se prueba con claves RSA generadas en local (sin red).
+Hexagonal: el puerto `TokenVerifierPort` (`application/ports/outbound`) lo implementa `JoseTokenVerifier` (`adapters/outbound/auth`, librería `jose`); los middleware `authenticate` y `cors` viven en `adapters/inbound/http/middleware`. Los tests inyectan un verificador falso con `createApp(config, { tokenVerifier })`, y el adaptador real se prueba con claves ES384 generadas en local (sin red).
 
 ## Ejemplo
 
@@ -105,4 +105,4 @@ curl -X POST http://localhost:8081/api/v1/statistics \
 curl http://localhost:8081/health
 ```
 
-Errores: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `400 INVALID_JSON`, `404 NOT_FOUND`, `413 PAYLOAD_TOO_LARGE` (cuerpo mayor a 1 MB), `422 INVALID_MATRIX`, `500 INTERNAL_ERROR`.
+Errores: `401 UNAUTHORIZED`, `400 INVALID_JSON`, `404 NOT_FOUND`, `413 PAYLOAD_TOO_LARGE` (cuerpo mayor a 1 MB), `422 INVALID_MATRIX`, `500 INTERNAL_ERROR`.

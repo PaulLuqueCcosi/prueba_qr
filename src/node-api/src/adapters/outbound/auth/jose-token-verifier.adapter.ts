@@ -15,13 +15,15 @@ export interface JoseVerifierOptions {
 
 // Remote JWKS is cached by jose; the cooldown stops a flood of bad `kid`s from
 // hammering the identity provider, and the timeout keeps requests from hanging.
-export function createRemoteKeySet(domain: string): JWTVerifyGetKey {
-  return createRemoteJWKSet(new URL(`https://${domain}/.well-known/jwks.json`), {
+export function createRemoteKeySet(jwksUri: string): JWTVerifyGetKey {
+  return createRemoteJWKSet(new URL(jwksUri), {
     timeoutDuration: 5_000,
     cooldownDuration: 30_000,
     cacheMaxAge: 10 * 60_000,
   });
 }
+
+const ALLOWED_ALGORITHMS = ['ES384', 'ES256', 'RS256'];
 
 // jose is used behind the port so the core never learns about JWT libraries.
 export class JoseTokenVerifier implements TokenVerifierPort {
@@ -30,18 +32,15 @@ export class JoseTokenVerifier implements TokenVerifierPort {
   async verify(token: string): Promise<VerifiedToken> {
     try {
       const { payload } = await jwtVerify(token, this.options.keySet, {
-        // RS256 only: blocks "none" and HS256-with-public-key confusion attacks.
-        algorithms: ['RS256'],
+        // Asymmetric algorithms only (Logto signs with ES384 by default): blocks "none"
+        // and HS256-with-public-key confusion attacks.
+        algorithms: ALLOWED_ALGORITHMS,
         issuer: this.options.issuer,
         audience: this.options.audience,
         clockTolerance: this.options.clockToleranceSeconds ?? 5,
         requiredClaims: ['exp', 'sub'],
       });
-      const scope = typeof payload['scope'] === 'string' ? payload['scope'] : '';
-      return {
-        subject: String(payload.sub),
-        scopes: scope.split(/\s+/).filter((s) => s.length > 0),
-      };
+      return { subject: String(payload.sub) };
     } catch (error) {
       throw new InvalidTokenError(classify(error));
     }

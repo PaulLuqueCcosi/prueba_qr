@@ -18,9 +18,10 @@ info:
     matrix, `q` is m x m and `r` is m x n. This API only requires each matrix to
     be non-empty and rectangular; it does not check the Q/R relationship.
 
-    **Authentication.** `POST /api/v1/statistics` requires an Auth0 access token
-    (`Authorization: Bearer <jwt>`, RS256) whose audience is this API and that
-    carries the scope `statistics:read`. `GET /health`, `/docs` and
+    **Authentication.** `POST /api/v1/statistics` requires a Logto **ID token**
+    (`Authorization: Bearer <jwt>`, signed ES384) whose issuer is the Logto tenant and
+    whose audience is the SPA application id. Any authenticated user is authorized
+    (there are no scopes). `GET /health`, `/docs` and
     `/openapi.yaml` are public.
 
     Every error uses the same body: `{ "error": { "code", "message" } }`.
@@ -36,7 +37,7 @@ paths:
       tags: [Statistics]
       operationId: calculateStatistics
       security:
-        - bearerAuth: [statistics:read]
+        - bearerAuth: []
       summary: Calculate statistics for the original, q and r matrices
       requestBody:
         required: true
@@ -98,21 +99,6 @@ paths:
                 error:
                   code: UNAUTHORIZED
                   message: Authentication required
-        '403':
-          description: The token is valid but lacks the scope `statistics:read`.
-          headers:
-            WWW-Authenticate:
-              schema:
-                type: string
-              example: Bearer error="insufficient_scope", scope="statistics:read"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                error:
-                  code: FORBIDDEN
-                  message: Insufficient scope for this resource
         '413':
           description: The body is larger than 1 MB.
           content:
@@ -169,7 +155,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Auth0 access token (RS256) issued for this API's audience.
+      description: Logto ID token (ES384) of the signed-in user, issued for the SPA application (the token `aud`).
   responses:
     NotFound:
       description: |
@@ -260,7 +246,6 @@ components:
                 - INVALID_JSON
                 - INVALID_MATRIX
                 - UNAUTHORIZED
-                - FORBIDDEN
                 - NOT_FOUND
                 - PAYLOAD_TOO_LARGE
                 - INTERNAL_ERROR
