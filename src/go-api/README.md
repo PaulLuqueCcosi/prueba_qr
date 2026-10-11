@@ -79,6 +79,33 @@ Formato: `{ "error": { "code", "message" } }`.
 | 502 | `UPSTREAM_UNAVAILABLE` | node-api inaccesible, timeout o respuesta no 2xx |
 | 500 | `INTERNAL_ERROR` | error inesperado (incluye panics recuperados) |
 
+## Pruebas
+
+Solo libreria estandar (`testing`); no necesitan servidores externos ni puertos fijos: node-api se simula con `httptest.NewServer` (puerto efimero) y la capa HTTP se prueba en proceso con `app.Test`.
+
+```bash
+go test ./...                                   # todo
+go test -race ./...                             # detector de carreras (requiere cgo/gcc)
+go test -coverprofile=cover.out ./... && go tool cover -func=cover.out
+go test -coverprofile=cover.out ./... && go tool cover -html=cover.out   # reporte visual
+```
+
+Desde la raiz del repo: `make test-go` (o `make test` para go-api y node-api, `make check` para lint + pruebas + regla de dependencias).
+
+Convencion: cada `*_test.go` vive junto al codigo que prueba y usa paquete externo (`package x_test`), de modo que solo se ejercita la API publica. Los nombres describen comportamiento (`TestFactorize_WideMatrix_ReconstructsOriginal`).
+
+| Paquete | Que cubre |
+|---|---|
+| `domain` | validacion de `Matrix` (vacia, fila vacia, irregular, NaN/Inf, 1x1, alta/ancha/cuadrada) y tipos de error |
+| `adapters/outbound/gonumqr` | pruebas de propiedades, nunca signos exactos: Q m×m, R m×n triangular superior, Q·R = A y QᵀQ = I (tolerancia 1e-9) para cuadradas, altas, anchas, rango deficiente, ceros, matrices aleatorias con semilla fija y la clasica `[[12,-51,4],[6,167,-68],[-4,24,-41]]`; incluye la guarda de regresion de matrices anchas (`Qᵀ·A₂`) y desbordes con 1e308 |
+| `application` | `FactorizeMatrix` con puertos falsos: camino feliz, matriz invalida sin llamar puertos, propagacion de errores, resultado no finito |
+| `adapters/outbound/nodeapi` | `StatisticsClient` contra un node-api falso: forma del request, decodificacion, no 2xx, JSON malformado, timeout, conexion rechazada, sin fugas de detalles internos |
+| `adapters/inbound/http` | integracion con el caso de uso real y gonumqr: todos los codigos del contrato (200, 400, 404, 413 con `Content-Length` y chunked, 422, 500 por panic, 502), `/health`, `/openapi.yaml`, `/docs`, forma `{error:{code,message}}` y un log JSON por peticion |
+| `adapters/outbound/logging` | una linea JSON por entrada, claves base no sobrescribibles, escrituras concurrentes |
+| `config` | valores por defecto, validos e invalidos (`PORT`, `NODE_API_URL`, `NODE_API_TIMEOUT_MS`) |
+
+Nota: las pruebas de 413 abren un listener en `127.0.0.1:0` (puerto efimero) porque `app.Test` no reproduce cuerpos chunked ni el cierre con bytes sin leer.
+
 ## Verificacion
 
 ```bash
