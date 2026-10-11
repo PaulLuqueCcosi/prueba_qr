@@ -12,7 +12,26 @@ npm run dev        # desarrollo con recarga
 npm run build && npm start   # producción
 ```
 
-Otros scripts: `npm run lint`, `npm run format`, `npm run typecheck`.
+Otros scripts: `npm run lint`, `npm run format`, `npm run typecheck`, `npm test` (ver [Pruebas](#pruebas)).
+
+## Pruebas
+
+Vitest + supertest. Las pruebas no necesitan ningún servidor en marcha: las peticiones HTTP se hacen en proceso contra `createApp(config, overrides)`, sin abrir puertos.
+
+```bash
+npm test               # una pasada (vitest run)
+npm run test:watch     # modo watch
+npm run test:coverage  # cobertura v8 (tabla en consola e informe HTML en coverage/)
+```
+
+Qué se cubre (comportamiento, no implementación):
+
+- **domain**: validador de matrices (vacía, filas vacías o desiguales, valores no numéricos, `NaN`/`Infinity`, 1x1, altas y anchas), diagonal con tolerancia (ceros exactos, ruido, límite `|x| == tolerancia`, rectangulares) y estadísticas (las tres matrices juntas, negativos, decimales, suma compensada, 1e6 valores sin desbordar la pila).
+- **application**: el caso de uso `CalculateStatistics` (camino feliz, `InvalidMatrixError` con el nombre de la matriz, tolerancia inyectada, `anyDiagonal`).
+- **adapters**: integración HTTP con supertest (200, 422, 400, 404, 413, 500 sin filtrar el mensaje interno, `/health`, `/openapi.yaml`, `/docs`, forma `{error:{code,message}}`, una línea de log por petición con un logger falso) y el logger JSON.
+- **config**: `PORT` y `DIAGONAL_TOLERANCE` (valores por defecto, inválidos, cero, negativos, `Infinity`).
+
+Convención de ubicación: cada prueba va junto al código que prueba, con el mismo nombre en kebab-case y sufijo `.test.ts` (por ejemplo `statistics.service.ts` -> `statistics.service.test.ts`). Los títulos están en inglés y describen el comportamiento ("returns 422 when a row has a different length"). `tsconfig.build.json` excluye `*.test.ts`, así que no llegan a `dist/`. ESLint también revisa las pruebas; solo ellas pueden importar entre capas (por ejemplo, la prueba HTTP usa `createApp` de `main`).
 
 ## Arquitectura
 

@@ -22,7 +22,7 @@ const noConfig = group('The core must not read configuration; inject values inst
 ]);
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules'] },
+  { ignores: ['dist', 'node_modules', 'coverage'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,
@@ -72,5 +72,10 @@ export default tseslint.config(
       noMain,
       group('Outbound adapters must not depend on inbound adapters.', ['**/adapters/inbound/**']),
     ),
+  },
+  {
+    // Tests may cross layers (e.g. build the app through the composition root or fakes).
+    files: ['**/*.test.ts'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 );
