@@ -7,3 +7,5 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [01](01-initial-structure.md) | Estructura inicial del proyecto | 2026-10-10 | Preparación |
 | [02](02-requirements-analysis.md) | Análisis del enunciado: preguntas y huecos | 2026-10-10 | Análisis |
 | [03](03-mvp-answers.md) | Respuestas del MVP | 2026-10-11 | Análisis |
+| [04](04-node-api-mvp.md) | node-api: versión mínima funcional | 2026-10-11 | 1 |
+| [05](05-go-api-mvp.md) | go-api: versión mínima funcional | 2026-10-11 | 1 |
