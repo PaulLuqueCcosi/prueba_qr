@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { formatNumber } from '@/lib/matrix'
@@ -10,6 +11,7 @@ interface MatrixTableProps {
 }
 
 export function MatrixTable({ title, caption, matrix }: MatrixTableProps) {
+  const { t } = useTranslation()
   const rows = matrix.length
   const columns = matrix[0]?.length ?? 0
 
@@ -28,12 +30,12 @@ export function MatrixTable({ title, caption, matrix }: MatrixTableProps) {
         <Button
           variant="ghost"
           size="sm"
-          aria-label={`Copy ${title} as JSON`}
+          aria-label={t('matrixTable.copyAria', { title })}
           onClick={() =>
             void navigator.clipboard?.writeText(JSON.stringify(matrix))
           }
         >
-          Copy JSON
+          {t('matrixTable.copyJson')}
         </Button>
       </div>
       <div className="overflow-x-auto rounded-md border">

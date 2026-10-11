@@ -41,7 +41,9 @@ describe('App navigation', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'QR factorization' }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('Matrix as JSON')).toBeInTheDocument()
+    expect(
+      screen.getByRole('group', { name: 'Matrix values' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
 
     const statistics = screen.getByRole('button', { name: 'Statistics' })

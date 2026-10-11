@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ErrorAlert } from '@/components/error-alert'
 import { SectionCard } from '@/components/section-card'
 import { StatisticsView } from '@/components/statistics-view'
@@ -10,10 +11,12 @@ import { createApiClient } from '@/lib/api-client'
 import type { AppConfig } from '@/lib/config'
 import { STATISTICS_EXAMPLE } from '@/lib/examples'
 import { parseMatrices } from '@/lib/matrix'
+import { translateIssue } from '@/lib/issue'
 import type { Matrices } from '@/lib/types'
 
 /** Calls node-api directly (not through go-api) to show it also requires its own token. */
 export function StatisticsPanel({ config }: { config: AppConfig }) {
+  const { t } = useTranslation()
   const client = useMemo(() => createApiClient(config), [config])
   const [text, setText] = useState(STATISTICS_EXAMPLE)
   const { data, error, loading, run, fail } = useApi(
@@ -23,7 +26,7 @@ export function StatisticsPanel({ config }: { config: AppConfig }) {
 
   const submit = () => {
     const parsed = parseMatrices(text)
-    if (!parsed.ok) return fail(parsed.message)
+    if (!parsed.ok) return fail(translateIssue(t, parsed.issue))
     void run(parsed.matrices)
   }
 
@@ -31,12 +34,14 @@ export function StatisticsPanel({ config }: { config: AppConfig }) {
     <div className="space-y-6">
       <SectionCard
         step={1}
-        title="Input matrices"
-        description={`Sent straight to ${config.nodeApiUrl}/api/v1/statistics, without going through go-api.`}
+        title={t('statisticsPanel.inputTitle')}
+        description={t('statisticsPanel.inputDescription', {
+          url: config.nodeApiUrl,
+        })}
       >
         <div className="space-y-1.5">
           <label htmlFor="statistics-matrices" className="text-sm font-medium">
-            Matrices as JSON
+            {t('statisticsPanel.label')}
           </label>
           <Textarea
             id="statistics-matrices"
@@ -50,13 +55,12 @@ export function StatisticsPanel({ config }: { config: AppConfig }) {
             id="statistics-matrices-hint"
             className="text-muted-foreground text-xs"
           >
-            Object with original, q and r. The API does not check that Q·R
-            equals the original.
+            {t('statisticsPanel.hint')}
           </p>
         </div>
         {error && <ErrorAlert error={error} />}
         <Button disabled={loading} onClick={submit}>
-          {loading ? 'Computing...' : 'Compute statistics'}
+          {loading ? t('qr.computing') : t('statisticsPanel.compute')}
         </Button>
       </SectionCard>
 
@@ -64,8 +68,8 @@ export function StatisticsPanel({ config }: { config: AppConfig }) {
       {data && (
         <SectionCard
           step={2}
-          title="Result"
-          description="Computed over the three matrices together."
+          title={t('statisticsPanel.resultTitle')}
+          description={t('statisticsPanel.resultDescription')}
         >
           <StatisticsView statistics={data} />
         </SectionCard>

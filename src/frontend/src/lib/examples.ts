@@ -1,10 +1,14 @@
-export const MATRIX_EXAMPLES: { label: string; value: string }[] = [
-  { label: 'Classic 3x3', value: '[[12,-51,4],[6,167,-68],[-4,24,-41]]' },
-  { label: 'Tall 3x2', value: '[[1,2],[3,4],[5,6]]' },
-  { label: 'Wide 2x3', value: '[[1,2,3],[4,5,6]]' },
-  { label: '1x1', value: '[[7]]' },
-  { label: 'Diagonal', value: '[[3,0,0],[0,2,0],[0,0,1]]' },
-  { label: 'Invalid (ragged)', value: '[[1,2,3],[4,5]]' },
+export type ExampleId =
+  'classic' | 'tall' | 'wide' | 'single' | 'diagonal' | 'ragged'
+
+/** `id` maps to the translation key `examples.<id>`. */
+export const MATRIX_EXAMPLES: { id: ExampleId; value: string }[] = [
+  { id: 'classic', value: '[[12,-51,4],[6,167,-68],[-4,24,-41]]' },
+  { id: 'tall', value: '[[1,2],[3,4],[5,6]]' },
+  { id: 'wide', value: '[[1,2,3],[4,5,6]]' },
+  { id: 'single', value: '[[7]]' },
+  { id: 'diagonal', value: '[[3,0,0],[0,2,0],[0,0,1]]' },
+  { id: 'ragged', value: '[[1,2,3],[4,5]]' },
 ]
 
 /** Any consistent set of matrices works: node-api does not re-check that Q*R = A. */

@@ -1,5 +1,6 @@
 import { useAuth0 } from '@auth0/auth0-react'
 import { Grid2x2, LogIn, LogOut } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,12 +23,10 @@ interface AppSidebarProps {
   onNavigate: (view: ViewId) => void
 }
 
-const GROUPS = [
-  { id: 'tools', label: 'Tools' },
-  { id: 'developer', label: 'Developer' },
-] as const
+const GROUPS = ['tools', 'developer'] as const
 
 export function AppSidebar({ current, onNavigate }: AppSidebarProps) {
+  const { t } = useTranslation()
   const { isAuthenticated, isLoading, user, loginWithRedirect, logout } =
     useAuth0()
 
@@ -41,9 +40,9 @@ export function AppSidebar({ current, onNavigate }: AppSidebarProps) {
                 <Grid2x2 aria-hidden />
               </div>
               <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-semibold">Matrix QR</span>
+                <span className="truncate font-semibold">{t('app.name')}</span>
                 <span className="text-sidebar-foreground/70 truncate text-xs">
-                  QR factorization tools
+                  {t('app.tagline')}
                 </span>
               </div>
             </SidebarMenuButton>
@@ -53,21 +52,21 @@ export function AppSidebar({ current, onNavigate }: AppSidebarProps) {
 
       <SidebarContent>
         {GROUPS.map((group) => (
-          <SidebarGroup key={group.id}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <SidebarGroup key={group}>
+            <SidebarGroupLabel>{t(`sidebar.${group}`)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {VIEWS.filter((view) => view.group === group.id).map((view) => (
+                {VIEWS.filter((view) => view.group === group).map((view) => (
                   <SidebarMenuItem key={view.id}>
                     <SidebarMenuButton
-                      tooltip={view.label}
+                      tooltip={t(`views.${view.id}.label`)}
                       isActive={current === view.id}
                       aria-current={current === view.id ? 'page' : undefined}
                       disabled={!isAuthenticated}
                       onClick={() => onNavigate(view.id)}
                     >
                       <view.icon aria-hidden />
-                      <span>{view.label}</span>
+                      <span>{t(`views.${view.id}.label`)}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -95,8 +94,8 @@ export function AppSidebar({ current, onNavigate }: AppSidebarProps) {
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Logout"
-              title="Logout"
+              aria-label={t('sidebar.logout')}
+              title={t('sidebar.logout')}
               className="group-data-[collapsible=icon]:hidden"
               onClick={() =>
                 void logout({
@@ -110,11 +109,13 @@ export function AppSidebar({ current, onNavigate }: AppSidebarProps) {
         ) : (
           <Button
             disabled={isLoading}
-            aria-label="Login"
+            aria-label={t('sidebar.login')}
             onClick={() => void loginWithRedirect()}
           >
             <LogIn aria-hidden />
-            <span className="group-data-[collapsible=icon]:hidden">Login</span>
+            <span className="group-data-[collapsible=icon]:hidden">
+              {t('sidebar.login')}
+            </span>
           </Button>
         )}
       </SidebarFooter>

@@ -16,7 +16,10 @@ describe('parseMatrix', () => {
   it('rejects a ragged matrix and names the row', () => {
     const result = parseMatrix('[[1,2,3],[4,5]]')
     expect(result).toMatchObject({ ok: false })
-    expect(!result.ok && result.message).toContain('row 2')
+    expect(!result.ok && result.issue).toMatchObject({
+      key: 'issues.notRectangular',
+      params: { row: 2 },
+    })
   })
 
   it.each(['[]', '[[]]', '{}', '5'])(
@@ -33,14 +36,14 @@ describe('parseMatrix', () => {
 
   it('reports invalid JSON', () => {
     const result = parseMatrix('[[1,2')
-    expect(!result.ok && result.message).toMatch(/Invalid JSON/)
+    expect(!result.ok && result.issue.key).toBe('issues.invalidJson')
   })
 })
 
 describe('parseMatrices', () => {
   it('requires original, q and r', () => {
     const result = parseMatrices('{"original":[[1]],"q":[[1]]}')
-    expect(!result.ok && result.message).toContain('"r"')
+    expect(!result.ok && result.issue.field).toBe('r')
   })
 
   it('accepts a complete payload', () => {

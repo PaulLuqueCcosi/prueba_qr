@@ -59,8 +59,47 @@ describe('QrPanel', () => {
 
     expect(await screen.findByText('Average')).toBeInTheDocument()
     expect(screen.getByText('1.25')).toBeInTheDocument()
-    expect(screen.getByText('Any: yes')).toBeInTheDocument()
+    expect(screen.getByText('Any: Yes')).toBeInTheDocument()
     expect(screen.getByText('Original (A)')).toBeInTheDocument()
+    expect(screen.getByText('Total sum')).toBeInTheDocument()
+  })
+
+  it('resizes the grid and fills it with random numbers', async () => {
+    render(<QrPanel config={config} />)
+    expect(screen.getAllByRole('textbox')).toHaveLength(9)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove row' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Add column' }))
+    expect(screen.getAllByRole('textbox')).toHaveLength(8)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Random' }))
+    for (const cell of screen.getAllByRole('textbox')) {
+      expect(Number.isInteger(Number((cell as HTMLInputElement).value))).toBe(
+        true,
+      )
+      expect((cell as HTMLInputElement).value).not.toBe('')
+    }
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    for (const cell of screen.getAllByRole('textbox')) {
+      expect(cell).toHaveValue('')
+    }
+  })
+
+  it('flags non-numeric cells and moves with the arrow keys', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    render(<QrPanel config={config} />)
+
+    const first = screen.getByLabelText('Row 1, column 1')
+    await userEvent.clear(first)
+    await userEvent.type(first, 'abc{ArrowDown}')
+    expect(screen.getByLabelText('Row 2, column 1')).toHaveFocus()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Compute QR' }))
+    expect(await screen.findByText(/not a valid number/)).toBeInTheDocument()
+    expect(first).toHaveAttribute('aria-invalid', 'true')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('shows a client-side error without calling the API', async () => {
@@ -74,7 +113,7 @@ describe('QrPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Compute QR' }))
 
     await waitFor(() =>
-      expect(screen.getByText(/not rectangular/)).toBeInTheDocument(),
+      expect(screen.getByText(/1 empty cell/)).toBeInTheDocument(),
     )
     expect(fetchMock).not.toHaveBeenCalled()
   })

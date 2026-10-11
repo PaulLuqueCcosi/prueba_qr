@@ -1,17 +1,26 @@
+import type { TFunction } from 'i18next'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAccessToken } from '@/hooks/use-api'
 import { SectionCard } from '@/components/section-card'
 import { Button } from '@/components/ui/button'
 import { decodeJwtClaims, type TokenClaims } from '@/lib/token'
 
-function formatRemaining(exp: number | undefined, now: number): string {
-  if (!exp) return 'unknown'
+function formatRemaining(
+  t: TFunction,
+  exp: number | undefined,
+  now: number,
+): string {
+  if (!exp) return t('developer.unknown')
   const seconds = Math.floor(exp - now / 1000)
-  return seconds > 0 ? `${seconds}s left` : 'expired'
+  return seconds > 0
+    ? t('developer.secondsLeft', { seconds })
+    : t('developer.expired')
 }
 
 /** Helper for testing with Postman/Swagger: shows the token claims and copies the token on demand. */
 export function DeveloperPanel() {
+  const { t } = useTranslation()
   const getToken = useAccessToken()
   const [claims, setClaims] = useState<TokenClaims | null>(null)
   const [message, setMessage] = useState('')
@@ -29,7 +38,7 @@ export function DeveloperPanel() {
       setClaims(decodeJwtClaims(token))
       setMessage('')
     } catch {
-      setMessage('Could not get an access token.')
+      setMessage(t('developer.couldNotGet'))
     }
   }
 
@@ -38,24 +47,24 @@ export function DeveloperPanel() {
       const token = await getToken()
       await navigator.clipboard.writeText(token)
       setClaims(decodeJwtClaims(token))
-      setMessage('Access token copied to the clipboard.')
+      setMessage(t('developer.copied'))
     } catch {
-      setMessage('Could not copy the access token.')
+      setMessage(t('developer.couldNotCopy'))
     }
   }
 
   return (
     <SectionCard
       step={1}
-      title="Access token"
-      description="Copy a fresh token to call the APIs from Postman or Swagger. The token itself is never displayed."
+      title={t('developer.title')}
+      description={t('developer.description')}
     >
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={copyToken}>
-          Copy access token
+          {t('developer.copy')}
         </Button>
         <Button variant="outline" size="sm" onClick={loadClaims}>
-          Show claims
+          {t('developer.showClaims')}
         </Button>
       </div>
       <p role="status" className="text-muted-foreground min-h-5 text-sm">
@@ -68,7 +77,7 @@ export function DeveloperPanel() {
           <dt className="text-muted-foreground">scope</dt>
           <dd>{claims.scope}</dd>
           <dt className="text-muted-foreground">exp</dt>
-          <dd>{formatRemaining(claims.exp, now)}</dd>
+          <dd>{formatRemaining(t, claims.exp, now)}</dd>
         </dl>
       )}
     </SectionCard>
