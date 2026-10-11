@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"go-api/internal/adapters/outbound/nodeapi"
+	"go-api/internal/application"
 	"go-api/internal/domain"
 )
 
@@ -206,5 +207,55 @@ func TestNewStatisticsClient_InvalidBaseURL_ReturnsError(t *testing.T) {
 	t.Parallel()
 	if _, err := nodeapi.NewStatisticsClient("http://[::1", time.Second); err == nil {
 		t.Fatal("expected an error for an unparsable base URL")
+	}
+}
+
+func TestCalculate_TokenInContext_IsForwardedAsBearerAuthorization(t *testing.T) {
+	t.Parallel()
+	var got []string
+	srv := fakeNode(t, func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Values("Authorization")
+		respondWith(http.StatusOK, okBody)(w, r)
+	})
+	ctx := application.WithAccessToken(context.Background(), "caller.jwt.token")
+
+	if _, err := newClient(t, srv.URL, time.Second).Calculate(ctx, sampleMatrices); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(got) != 1 || got[0] != "Bearer caller.jwt.token" {
+		t.Fatalf("Authorization = %v, want exactly [Bearer caller.jwt.token]", got)
+	}
+}
+
+func TestCalculate_NoTokenInContext_SendsNoAuthorization(t *testing.T) {
+	t.Parallel()
+	var got string
+	srv := fakeNode(t, func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("Authorization")
+		respondWith(http.StatusOK, okBody)(w, r)
+	})
+
+	if _, err := newClient(t, srv.URL, time.Second).Calculate(context.Background(), sampleMatrices); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got != "" {
+		t.Fatalf("Authorization = %q, want none", got)
+	}
+}
+
+func TestCalculate_RejectedToken_ReturnsUpstreamUnavailableWithoutTokenOrBodyInError(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		srv := fakeNode(t, respondWith(status, `{"error":{"message":"UPSTREAM-SECRET"}}`))
+		ctx := application.WithAccessToken(context.Background(), "caller.jwt.token")
+
+		_, err := newClient(t, srv.URL, time.Second).Calculate(ctx, sampleMatrices)
+
+		assertUpstreamUnavailable(t, err)
+		if msg := err.Error(); strings.Contains(msg, "caller.jwt.token") || strings.Contains(msg, "UPSTREAM-SECRET") {
+			t.Errorf("status %d: error leaks token or body: %q", status, msg)
+		}
 	}
 }

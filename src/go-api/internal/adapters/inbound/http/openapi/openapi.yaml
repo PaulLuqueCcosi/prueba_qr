@@ -19,6 +19,11 @@ info:
     `original`, `q` and `r` together. Floating-point noise is expected in `q`,
     `r` and the derived statistics (for example `14.000000000000002`).
 
+    **Authentication.** `POST /api/v1/qr` requires `Authorization: Bearer <access_token>`,
+    an Auth0 JWT (RS256) issued for this API's audience, with the `qr:write` scope.
+    go-api validates the token itself and forwards it to node-api, which validates it
+    again. `/health`, `/docs` and `/openapi.yaml` are public.
+
     Every error uses the same body: `{ "error": { "code", "message" } }`.
 servers:
   - url: http://localhost:8080
@@ -32,7 +37,11 @@ paths:
       tags: [QR]
       operationId: factorizeMatrix
       summary: QR-factorize a matrix and attach its statistics
-      description: Calls node-api (`POST /api/v1/statistics`) internally, so a 502 means that service is unreachable.
+      description: |
+        Calls node-api (`POST /api/v1/statistics`) internally with the caller's own
+        token, so a 502 means that service is unreachable or rejected the token.
+      security:
+        - bearerAuth: [qr:write]
       requestBody:
         required: true
         content:
@@ -84,6 +93,10 @@ paths:
                 error:
                   code: INVALID_JSON
                   message: Request body is not valid JSON
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '413':
           description: The body is larger than 1 MB.
           content:
@@ -126,7 +139,7 @@ paths:
                   code: INTERNAL_ERROR
                   message: Unexpected error
         '502':
-          description: node-api is unreachable, timed out or answered with a non-2xx status.
+          description: node-api is unreachable, timed out, rejected the forwarded token or answered with a non-2xx status.
           content:
             application/json:
               schema:
@@ -140,6 +153,7 @@ paths:
       tags: [Health]
       operationId: getHealth
       summary: Liveness check
+      security: []
       responses:
         '200':
           description: The service is up.
@@ -152,7 +166,48 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Auth0 access token (RS256) for the audience `https://api.matrix-challenge.dev`.
+        The `qr:write` scope is required on `POST /api/v1/qr`.
   responses:
+    Unauthorized:
+      description: |
+        The `Authorization` header is missing or malformed, or the token is invalid
+        (bad signature, wrong issuer or audience, expired). The message is always the
+        same: the cause is never disclosed.
+      headers:
+        WWW-Authenticate:
+          description: '`Bearer` when no token was sent, `Bearer error="invalid_token"` when a token was rejected.'
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Authentication required
+    Forbidden:
+      description: The token is valid but does not carry the `qr:write` scope.
+      headers:
+        WWW-Authenticate:
+          description: '`Bearer error="insufficient_scope", scope="qr:write"`'
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: Insufficient scope for this resource
     NotFound:
       description: |
         Any unknown route (for example `GET /nope`) answers with this shape. It
@@ -249,6 +304,8 @@ components:
             code:
               type: string
               enum:
+                - UNAUTHORIZED
+                - FORBIDDEN
                 - INVALID_JSON
                 - INVALID_MATRIX
                 - NON_FINITE_RESULT

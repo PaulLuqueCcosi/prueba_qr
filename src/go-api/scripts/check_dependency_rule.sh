@@ -17,8 +17,8 @@ check ./internal/domain '^(go-api/internal/(application|adapters|config)|github\
 # Application: depends on domain only.
 check ./internal/application '^(go-api/internal/(adapters|config)|github\.com|gonum\.org|golang\.org/x)'
 # Adapters must not depend on each other or on config / cmd.
-for pkg in inbound/http outbound/gonumqr outbound/nodeapi outbound/logging; do
-  others=$(echo "inbound/http outbound/gonumqr outbound/nodeapi outbound/logging" | tr ' ' '\n' | grep -v "^$pkg$" | sed 's#.*#go-api/internal/adapters/&#' | paste -sd'|')
+for pkg in inbound/http outbound/gonumqr outbound/nodeapi outbound/logging outbound/auth; do
+  others=$(echo "inbound/http outbound/gonumqr outbound/nodeapi outbound/logging outbound/auth" | tr ' ' '\n' | grep -v "^$pkg$" | sed 's#.*#go-api/internal/adapters/&#' | paste -sd'|')
   check "./internal/adapters/$pkg" "^(${others}|go-api/internal/config|go-api/cmd)"
 done
 

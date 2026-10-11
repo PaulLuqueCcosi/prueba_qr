@@ -15,10 +15,17 @@ const bodyLimitBytes = 1 << 20
 type Dependencies struct {
 	FactorizeMatrix application.FactorizeMatrixPort
 	Logger          application.Logger
+	TokenVerifier   application.TokenVerifier
+	// CORSOrigins is the allow-list of browser origins; empty means no CORS headers.
+	CORSOrigins []string
 }
 
 // NewApp builds the Fiber app without listening, so it can be used by tests.
 func NewApp(deps Dependencies) *fiber.App {
+	// Fail closed: an app without a verifier would otherwise only break per request.
+	if deps.TokenVerifier == nil {
+		panic("http adapter: TokenVerifier is required")
+	}
 	errorHandler := newErrorHandler(deps.Logger)
 
 	app := fiber.New(fiber.Config{
@@ -34,9 +41,12 @@ func NewApp(deps Dependencies) *fiber.App {
 	// Logger wraps recover so panics are turned into errors and logged with their final status.
 	app.Use(requestLogger(deps.Logger, errorHandler))
 	app.Use(recover.New())
-	app.Use(bodyLimitGuard)
+	app.Use(cors(deps.CORSOrigins))
 
-	registerRoutes(app, qrHandler{factorize: deps.FactorizeMatrix})
+	registerRoutes(app, qrHandler{factorize: deps.FactorizeMatrix},
+		authenticate(deps.TokenVerifier, deps.Logger),
+		requireScope(scopeQRWrite, deps.Logger),
+	)
 	return app
 }
 

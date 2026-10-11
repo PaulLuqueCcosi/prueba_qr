@@ -71,6 +71,11 @@ func (c *StatisticsClient) Calculate(ctx context.Context, m domain.Matrices) (do
 		return domain.Statistics{}, domain.NewUpstreamUnavailableError("build statistics request: " + err.Error())
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// node-api validates the token on its own (defense in depth), so the caller's
+	// token is forwarded as is. It must never end up in an error message or log.
+	if token, ok := application.AccessTokenFrom(ctx); ok {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -83,7 +88,11 @@ func (c *StatisticsClient) Calculate(ctx context.Context, m domain.Matrices) (do
 		return domain.Statistics{}, domain.NewUpstreamUnavailableError("read node-api response: " + err.Error())
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return domain.Statistics{}, domain.NewUpstreamUnavailableError(fmt.Sprintf("node-api responded with status %d", resp.StatusCode))
+		reason := fmt.Sprintf("node-api responded with status %d", resp.StatusCode)
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			reason += " (forwarded token rejected)"
+		}
+		return domain.Statistics{}, domain.NewUpstreamUnavailableError(reason)
 	}
 
 	var dto statisticsDTO

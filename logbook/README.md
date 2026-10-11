@@ -12,3 +12,4 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [06](06-frontend-scope.md) | Alcance del frontend | 2026-10-11 | 2 |
 | [07](07-automated-tests.md) | Pruebas automatizadas | 2026-10-11 | 2 |
 | [08](08-node-api-jwt.md) | node-api: autenticación con JWT de Auth0 | 2026-10-11 | 4 |
+| [09](09-go-api-jwt.md) | go-api: autenticación con JWT y reenvío del token | 2026-10-11 | 4 |

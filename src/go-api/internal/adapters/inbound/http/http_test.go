@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	nethttp "net/http"
@@ -59,6 +60,44 @@ func (l *fakeLogger) byLevel(level string) []logEntry {
 	return out
 }
 
+// ---- fake token verifier ---------------------------------------------------
+
+const (
+	validToken   = "valid.token.with-scope"
+	noScopeToken = "valid.token.without-scope"
+	testOrigin   = "http://localhost:5173"
+)
+
+// fakeVerifier stands in for the JWT adapter: the HTTP layer only cares about
+// the outcome (claims or typed error), not how the token was checked.
+type fakeVerifier struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (f *fakeVerifier) Verify(_ context.Context, token string) (application.Claims, error) {
+	f.mu.Lock()
+	f.calls++
+	f.mu.Unlock()
+	switch token {
+	case validToken:
+		return application.Claims{Subject: "user|1", Scopes: []string{"openid", "qr:write"}}, nil
+	case noScopeToken:
+		return application.Claims{Subject: "user|2", Scopes: []string{"openid", "statistics:read"}}, nil
+	case "key.unavailable.token":
+		return application.Claims{}, &application.TokenError{Kind: application.ErrKeyUnavailable, Reason: "key_unavailable"}
+	case "exploding.verifier.token":
+		return application.Claims{}, errors.New("verifier internals: SECRET-VERIFIER-DETAIL")
+	}
+	return application.Claims{}, &application.TokenError{Kind: application.ErrInvalidToken, Reason: "invalid_signature"}
+}
+
+func (f *fakeVerifier) callCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.calls
+}
+
 type panickingUseCase struct{ value any }
 
 func (p panickingUseCase) Execute(context.Context, [][]float64) (application.QRResult, error) {
@@ -71,15 +110,18 @@ func (p panickingUseCase) Execute(context.Context, [][]float64) (application.QRR
 type stack struct {
 	app      *fiber.App
 	logger   *fakeLogger
+	verifier *fakeVerifier
 	nodeURL  string
 	mu       sync.Mutex
 	nodeHits int
 	nodeBody []byte
+	// nodeAuth is the Authorization header node-api received on its last call.
+	nodeAuth string
 }
 
 func newStack(t *testing.T, nodeHandler nethttp.HandlerFunc) *stack {
 	t.Helper()
-	s := &stack{logger: &fakeLogger{}}
+	s := &stack{logger: &fakeLogger{}, verifier: &fakeVerifier{}}
 
 	if nodeHandler == nil {
 		nodeHandler = func(w nethttp.ResponseWriter, _ *nethttp.Request) {
@@ -92,6 +134,7 @@ func newStack(t *testing.T, nodeHandler nethttp.HandlerFunc) *stack {
 		s.mu.Lock()
 		s.nodeHits++
 		s.nodeBody = body
+		s.nodeAuth = r.Header.Get("Authorization")
 		s.mu.Unlock()
 		nodeHandler(w, r)
 	}))
@@ -111,6 +154,8 @@ func (s *stack) buildApp(t *testing.T, nodeURL string) *fiber.App {
 	return httpadapter.NewApp(httpadapter.Dependencies{
 		FactorizeMatrix: application.NewFactorizeMatrix(gonumqr.New(), client),
 		Logger:          s.logger,
+		TokenVerifier:   s.verifier,
+		CORSOrigins:     []string{testOrigin},
 	})
 }
 
@@ -118,6 +163,12 @@ func (s *stack) hits() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.nodeHits
+}
+
+func (s *stack) lastNodeAuth() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.nodeAuth
 }
 
 func (s *stack) lastNodeBody() []byte {
@@ -140,10 +191,20 @@ func do(t *testing.T, app *fiber.App, req *nethttp.Request) (*nethttp.Response, 
 	return resp, body
 }
 
+// postQR sends an authorized request; use postQRWithAuth for other credentials.
 func postQR(t *testing.T, app *fiber.App, body string) (*nethttp.Response, []byte) {
+	t.Helper()
+	return postQRWithAuth(t, app, body, "Bearer "+validToken)
+}
+
+// postQRWithAuth sends the header as is; an empty value omits it.
+func postQRWithAuth(t *testing.T, app *fiber.App, body, authorization string) (*nethttp.Response, []byte) {
 	t.Helper()
 	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/qr", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	if authorization != "" {
+		req.Header.Set("Authorization", authorization)
+	}
 	return do(t, app, req)
 }
 
@@ -445,6 +506,7 @@ func requestHead(framingHeader string) string {
 		"POST /api/v1/qr HTTP/1.1",
 		"Host: x",
 		"Content-Type: application/json",
+		"Authorization: Bearer " + validToken,
 		framingHeader,
 		"Connection: close",
 		"", "",
@@ -497,6 +559,7 @@ func chunkedPost(t *testing.T, baseURL, payload string) (*nethttp.Response, []by
 		t.Fatalf("build request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+validToken)
 
 	resp, err := (&nethttp.Client{Timeout: 10 * time.Second}).Do(req)
 	if err != nil {
@@ -571,7 +634,7 @@ func TestPostQR_NodeApiDown_Returns502UpstreamUnavailableWithoutLeaking(t *testi
 	dead := httptest.NewServer(nethttp.NotFoundHandler())
 	deadURL := dead.URL
 	dead.Close()
-	s := &stack{logger: &fakeLogger{}}
+	s := &stack{logger: &fakeLogger{}, verifier: &fakeVerifier{}}
 	s.app = s.buildApp(t, deadURL)
 
 	resp, body := postQR(t, s.app, `{"matrix":[[1,2],[3,4]]}`)
@@ -599,6 +662,7 @@ func TestPostQR_UseCasePanics_Returns500InternalErrorWithoutLeakingPanicMessage(
 	app := httpadapter.NewApp(httpadapter.Dependencies{
 		FactorizeMatrix: panickingUseCase{value: "kaboom: secret internals"},
 		Logger:          logger,
+		TokenVerifier:   &fakeVerifier{},
 	})
 
 	resp, body := postQR(t, app, `{"matrix":[[1]]}`)
@@ -629,6 +693,7 @@ func TestPostQR_UseCasePanicsWithAnError_StillReturns500(t *testing.T) {
 	app := httpadapter.NewApp(httpadapter.Dependencies{
 		FactorizeMatrix: panickingUseCase{value: io.ErrUnexpectedEOF},
 		Logger:          &fakeLogger{},
+		TokenVerifier:   &fakeVerifier{},
 	})
 
 	resp, body := postQR(t, app, `{"matrix":[[1]]}`)
@@ -687,7 +752,7 @@ func TestGetOpenAPI_Returns200YAMLDescribingTheRoutes(t *testing.T) {
 	}
 	// No YAML parser is in the module graph, so check the top-level structure instead.
 	spec := string(body)
-	for _, want := range []string{"openapi: 3.0", "\ninfo:", "\npaths:", "/api/v1/qr:", "/health:"} {
+	for _, want := range []string{"openapi: 3.0", "\ninfo:", "\npaths:", "/api/v1/qr:", "/health:", "bearerAuth:", "UNAUTHORIZED", "FORBIDDEN"} {
 		if !strings.Contains(spec, want) {
 			t.Errorf("spec is missing %q", want)
 		}
