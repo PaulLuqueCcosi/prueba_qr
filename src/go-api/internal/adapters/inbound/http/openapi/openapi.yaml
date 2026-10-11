@@ -1,0 +1,260 @@
+openapi: 3.0.3
+info:
+  title: go-api - QR factorization
+  version: 0.1.0
+  description: |
+    Factorizes a rectangular matrix with QR (Gonum), asks node-api for the
+    statistics of `original`, `q` and `r`, and returns everything together.
+
+    **Shapes.** For an m x n input, `q` is the full m x m matrix and `r` is
+    m x n. Wide matrices (rows < columns) are solved by factorizing the leading
+    m x m block and computing the rest of `r` as `Q^T * A2`.
+
+    **Diagonal rule.** `statistics.isDiagonal` is evaluated per matrix. A matrix
+    is diagonal when every element outside the main diagonal satisfies
+    `|x| <= tolerance`, also for rectangular matrices. The tolerance is applied
+    by node-api: `1e-9` by default, set with its `DIAGONAL_TOLERANCE` variable.
+
+    **Statistics scope.** `max`, `min`, `average` and `sum` cover all values of
+    `original`, `q` and `r` together. Floating-point noise is expected in `q`,
+    `r` and the derived statistics (for example `14.000000000000002`).
+
+    Every error uses the same body: `{ "error": { "code", "message" } }`.
+servers:
+  - url: http://localhost:8080
+    description: Local development (default PORT)
+tags:
+  - name: QR
+  - name: Health
+paths:
+  /api/v1/qr:
+    post:
+      tags: [QR]
+      operationId: factorizeMatrix
+      summary: QR-factorize a matrix and attach its statistics
+      description: Calls node-api (`POST /api/v1/statistics`) internally, so a 502 means that service is unreachable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QrRequest'
+            examples:
+              classic:
+                summary: Classic 3x3 QR example
+                value:
+                  matrix: [[12, -51, 4], [6, 167, -68], [-4, 24, -41]]
+      responses:
+        '200':
+          description: The factorization and the statistics computed by node-api.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrResponse'
+              examples:
+                classic:
+                  summary: Result for the classic 3x3 matrix
+                  value:
+                    original: [[12, -51, 4], [6, 167, -68], [-4, 24, -41]]
+                    q:
+                      - [-0.8571428571428572, 0.3942857142857143, 0.33142857142857146]
+                      - [-0.4285714285714286, -0.9028571428571428, -0.03428571428571425]
+                      - [0.28571428571428575, -0.1714285714285714, 0.9428571428571428]
+                    r:
+                      - [-14, -21, 14.000000000000002]
+                      - [0, -175.00000000000003, 70.00000000000001]
+                      - [0, 0, -35]
+                    statistics:
+                      max: 167
+                      min: -175.00000000000003
+                      average: -4.164444444444445
+                      sum: -112.44000000000001
+                      isDiagonal:
+                        original: false
+                        q: false
+                        r: false
+                      anyDiagonal: false
+        '400':
+          description: The body is not valid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INVALID_JSON
+                  message: Request body is not valid JSON
+        '413':
+          description: The body is larger than 1 MB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: PAYLOAD_TOO_LARGE
+                  message: Request body exceeds the size limit
+        '422':
+          description: |
+            `INVALID_MATRIX`: `matrix` is missing, empty, ragged or has non-numeric values.
+            `NON_FINITE_RESULT`: the factorization overflowed (for example values near 1e308).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidMatrix:
+                  summary: Ragged matrix
+                  value:
+                    error:
+                      code: INVALID_MATRIX
+                      message: 'Matrix must be rectangular: row 1 has 1 columns, expected 2'
+                nonFiniteResult:
+                  summary: Values too large to factorize
+                  value:
+                    error:
+                      code: NON_FINITE_RESULT
+                      message: Factorization produced non-finite values for this matrix
+        '500':
+          description: Unexpected error, including recovered panics. The cause is logged, never returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  message: Unexpected error
+        '502':
+          description: node-api is unreachable, timed out or answered with a non-2xx status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: UPSTREAM_UNAVAILABLE
+                  message: Statistics service is unavailable
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Liveness check
+      responses:
+        '200':
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: |
+        Any unknown route (for example `GET /nope`) answers with this shape. It
+        is returned by every path that is not documented here.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Route not found
+  schemas:
+    Matrix:
+      type: array
+      description: Non-empty rectangular matrix as an array of rows. All rows have the same length.
+      minItems: 1
+      items:
+        type: array
+        minItems: 1
+        items:
+          type: number
+      example: [[1, 2], [3, 4]]
+    QrRequest:
+      type: object
+      required: [matrix]
+      properties:
+        matrix:
+          $ref: '#/components/schemas/Matrix'
+    DiagonalFlags:
+      type: object
+      required: [original, q, r]
+      properties:
+        original:
+          type: boolean
+        q:
+          type: boolean
+        r:
+          type: boolean
+    Statistics:
+      type: object
+      required: [max, min, average, sum, isDiagonal, anyDiagonal]
+      properties:
+        max:
+          type: number
+          description: Largest value across original, q and r.
+        min:
+          type: number
+          description: Smallest value across original, q and r.
+        average:
+          type: number
+          description: Arithmetic mean of all values of original, q and r.
+        sum:
+          type: number
+          description: Sum of all values of original, q and r.
+        isDiagonal:
+          $ref: '#/components/schemas/DiagonalFlags'
+        anyDiagonal:
+          type: boolean
+          description: True when at least one of the three matrices is diagonal.
+    QrResponse:
+      type: object
+      required: [original, q, r, statistics]
+      properties:
+        original:
+          allOf:
+            - $ref: '#/components/schemas/Matrix'
+          description: The input matrix (m x n), echoed back.
+        q:
+          allOf:
+            - $ref: '#/components/schemas/Matrix'
+          description: Orthogonal factor, full m x m.
+        r:
+          allOf:
+            - $ref: '#/components/schemas/Matrix'
+          description: Upper-triangular factor, m x n.
+        statistics:
+          $ref: '#/components/schemas/Statistics'
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_JSON
+                - INVALID_MATRIX
+                - NON_FINITE_RESULT
+                - NOT_FOUND
+                - PAYLOAD_TOO_LARGE
+                - UPSTREAM_UNAVAILABLE
+                - INTERNAL_ERROR
+            message:
+              type: string
