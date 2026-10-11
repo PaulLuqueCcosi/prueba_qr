@@ -1,6 +1,7 @@
-import { useAuth0 } from '@auth0/auth0-react'
+import { useLogto } from '@logto/react'
 import { useCallback, useState } from 'react'
 import { ApiError } from '@/lib/api-client'
+import { isExpiring } from '@/lib/token'
 
 interface ApiState<T> {
   data: T | null
@@ -8,19 +9,30 @@ interface ApiState<T> {
   loading: boolean
 }
 
-/** Fetches a fresh token for a single use; throws when Auth0 gives none. */
+/**
+ * Gets the user's ID token, which is the Bearer token for both APIs (Logto's
+ * Free plan has no API resources). The SDK only refreshes tokens when asked for
+ * an access token, so an expired or expiring ID token is renewed through the
+ * refresh token first. Throws when Logto gives none, e.g. the session ended.
+ */
 export function useAccessToken() {
-  const { getAccessTokenSilently } = useAuth0()
+  const { getIdToken, getAccessToken, clearAccessToken } = useLogto()
   return useCallback(async () => {
-    const token = await getAccessTokenSilently()
-    if (!token) throw new Error('No access token')
+    let token = await getIdToken()
+    if (!token || isExpiring(token)) {
+      // Dropping the cached access token forces a refresh-token grant, which also renews the ID token.
+      await clearAccessToken()
+      await getAccessToken()
+      token = await getIdToken()
+    }
+    if (!token) throw new Error('No ID token')
     return token
-  }, [getAccessTokenSilently])
+  }, [getIdToken, getAccessToken, clearAccessToken])
 }
 
 /**
- * Runs an authenticated API call. The token is fetched right before each call
- * and never stored in state, so it lives in memory only as long as needed.
+ * Runs an authenticated API call. The token is requested right before each call
+ * and never stored in state.
  */
 export function useApi<I, T>(call: (token: string, input: I) => Promise<T>) {
   const getToken = useAccessToken()
@@ -44,7 +56,7 @@ export function useApi<I, T>(call: (token: string, input: I) => Promise<T>) {
             : new ApiError(
                 0,
                 'TOKEN_ERROR',
-                'Could not get an access token. Try logging out and in again.',
+                'Could not get the ID token. Try logging out and in again.',
               )
         setState({ data: null, error, loading: false })
       }

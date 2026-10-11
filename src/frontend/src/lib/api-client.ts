@@ -16,7 +16,7 @@ export class ApiError extends Error {
 const FALLBACK_MESSAGES: Record<number, string> = {
   400: 'Malformed request (invalid JSON).',
   401: 'Unauthorized: the token is missing, invalid or expired.',
-  403: 'Forbidden: the token does not have the required scope.',
+  403: 'Forbidden: access denied.',
   413: 'Payload too large.',
   422: 'The matrix is invalid.',
   502: 'The upstream API (node-api) is unavailable.',

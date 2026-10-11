@@ -3,16 +3,27 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { QrPanel } from './qr-panel'
 
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: () => ({
-    getAccessTokenSilently: () => Promise.resolve('test-token'),
+const jwt = vi.hoisted(() => {
+  const b64 = (o: object) =>
+    btoa(JSON.stringify(o))
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+  // exp far in the future, so the hook does not try to refresh.
+  return { fresh: `${b64({ alg: 'ES384' })}.${b64({ exp: 4102444800 })}.sig` }
+})
+
+vi.mock('@logto/react', () => ({
+  useLogto: () => ({
+    getIdToken: () => Promise.resolve(jwt.fresh),
+    getAccessToken: vi.fn(),
+    clearAccessToken: vi.fn(),
   }),
 }))
 
 const config = {
-  auth0Domain: 'd',
-  auth0ClientId: 'c',
-  auth0Audience: 'a',
+  logtoEndpoint: 'https://logto.test',
+  logtoAppId: 'app',
   goApiUrl: 'http://go.test',
   nodeApiUrl: 'http://node.test',
 }

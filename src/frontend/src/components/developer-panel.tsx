@@ -74,8 +74,8 @@ export function DeveloperPanel() {
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono text-xs break-all">
           <dt className="text-muted-foreground">aud</dt>
           <dd>{[claims.aud].flat().join(', ')}</dd>
-          <dt className="text-muted-foreground">scope</dt>
-          <dd>{claims.scope}</dd>
+          <dt className="text-muted-foreground">iss</dt>
+          <dd>{claims.iss}</dd>
           <dt className="text-muted-foreground">exp</dt>
           <dd>{formatRemaining(t, claims.exp, now)}</dd>
         </dl>

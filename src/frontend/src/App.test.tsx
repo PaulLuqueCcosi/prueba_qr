@@ -3,22 +3,35 @@ import userEvent from '@testing-library/user-event'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: () => ({
+const jwt = vi.hoisted(() => {
+  const b64 = (o: object) =>
+    btoa(JSON.stringify(o))
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+  // exp far in the future, so the hook does not try to refresh.
+  return { fresh: `${b64({ alg: 'ES384' })}.${b64({ exp: 4102444800 })}.sig` }
+})
+
+vi.mock('@logto/react', () => ({
+  useLogto: () => ({
     isAuthenticated: true,
     isLoading: false,
     error: undefined,
-    user: { name: 'Ada Lovelace', email: 'ada@example.test' },
-    getAccessTokenSilently: () => Promise.resolve('test-token'),
-    loginWithRedirect: vi.fn(),
-    logout: vi.fn(),
+    getIdTokenClaims: () =>
+      Promise.resolve({ name: 'Ada Lovelace', email: 'ada@example.test' }),
+    getIdToken: () => Promise.resolve(jwt.fresh),
+    getAccessToken: vi.fn(),
+    clearAccessToken: vi.fn(),
+    signIn: vi.fn(),
+    signOut: vi.fn(),
   }),
+  useHandleSignInCallback: vi.fn(),
 }))
 
 const config = {
-  auth0Domain: 'd',
-  auth0ClientId: 'c',
-  auth0Audience: 'a',
+  logtoEndpoint: 'https://logto.test',
+  logtoAppId: 'app',
   goApiUrl: 'http://go.test',
   nodeApiUrl: 'http://node.test',
 }
@@ -44,7 +57,7 @@ describe('App navigation', () => {
     expect(
       screen.getByRole('group', { name: 'Matrix values' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument()
 
     const statistics = screen.getByRole('button', { name: 'Statistics' })
     await userEvent.click(statistics)
@@ -57,7 +70,7 @@ describe('App navigation', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'API & token' }))
     expect(
-      screen.getByRole('button', { name: 'Copy access token' }),
+      screen.getByRole('button', { name: 'Copy ID token' }),
     ).toBeInTheDocument()
   })
 })

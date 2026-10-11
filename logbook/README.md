@@ -19,3 +19,4 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [13](13-node-api-logto.md) | node-api: validación del ID token de Logto | 2026-10-11 | 4 |
 | [14](14-go-api-logto.md) | go-api: validación del ID token de Logto y reenvío a node-api | 2026-10-11 | 4 |
 | [15](15-frontend-branding.md) | Frontend: logo, favicon y metadata | 2026-10-11 | 6 |
+| [16](16-frontend-logto.md) | Frontend: login con Logto y corrección de los resultados | 2026-10-11 | 4 y 6 |

@@ -3,12 +3,25 @@ export const en = {
   app: {
     name: 'Matrix QR',
     tagline: 'QR factorization tools',
-    description:
-      'Compute the QR factorization of a matrix and the statistics of the result.',
     signIn: 'Sign in',
     loginError: 'Login error',
     loading: 'Loading',
     toggleSidebar: 'Toggle sidebar',
+  },
+  signIn: {
+    tagline: 'Compute QR factorization and matrix statistics',
+    secureHint:
+      'Secure sign-in with Logto, you will be redirected and brought back',
+    waiting: 'Redirecting you to the secure sign-in page...',
+    waitingShort: 'Redirecting...',
+    errorTitle: 'Sign-in problem',
+    failed: 'We could not start the sign-in. Please try again.',
+  },
+  callback: {
+    completing: 'Completing sign-in...',
+    failedTitle: 'Sign-in problem',
+    failed: 'We could not complete the sign-in. Please try again.',
+    back: 'Back to start',
   },
   sidebar: {
     tools: 'Tools',
@@ -36,7 +49,8 @@ export const en = {
     developer: {
       label: 'API & token',
       title: 'API & token',
-      description: 'Inspect or copy the access token to test the APIs by hand.',
+      description:
+        'Inspect or copy the ID token (the Bearer token) to test the APIs by hand.',
     },
   },
   qr: {
@@ -116,14 +130,14 @@ export const en = {
     unreachable: 'Unreachable',
   },
   developer: {
-    title: 'Access token',
+    title: 'ID token',
     description:
       'Copy a fresh token to call the APIs from Postman or Swagger. The token itself is never displayed.',
-    copy: 'Copy access token',
+    copy: 'Copy ID token',
     showClaims: 'Show claims',
-    couldNotGet: 'Could not get an access token.',
-    copied: 'Access token copied to the clipboard.',
-    couldNotCopy: 'Could not copy the access token.',
+    couldNotGet: 'Could not get the ID token.',
+    copied: 'ID token copied to the clipboard.',
+    couldNotCopy: 'Could not copy the ID token.',
     unknown: 'unknown',
     expired: 'expired',
     secondsLeft: '{{seconds}}s left',
@@ -133,6 +147,10 @@ export const en = {
     body: 'Set these variables in .env.local (see .env.example) and restart the dev server:',
   },
   errors: {
+    renderTitle: 'Could not display the results',
+    renderBody:
+      'Something went wrong while showing this result. Your data is safe: try again.',
+    renderRetry: 'Try again',
     clientValidation: 'Invalid input',
     serverMessage: 'Server message',
     titles: {
@@ -148,8 +166,7 @@ export const en = {
     codes: {
       NETWORK_ERROR:
         'Cannot reach the API. Is it running, and does CORS allow this origin?',
-      TOKEN_ERROR:
-        'Could not get an access token. Try logging out and in again.',
+      TOKEN_ERROR: 'Could not get the ID token. Try logging out and in again.',
       INVALID_JSON: 'The request body is not valid JSON.',
       INVALID_MATRIX: 'The matrix is invalid.',
       PAYLOAD_TOO_LARGE: 'Payload too large.',
@@ -161,7 +178,7 @@ export const en = {
     fallback: {
       '400': 'Malformed request (invalid JSON).',
       '401': 'Unauthorized: the token is missing, invalid or expired.',
-      '403': 'Forbidden: the token does not have the required scope.',
+      '403': 'Forbidden: access denied.',
       '413': 'Payload too large.',
       '422': 'The matrix is invalid.',
       '502': 'The upstream API (node-api) is unavailable.',

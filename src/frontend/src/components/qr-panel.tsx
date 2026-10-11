@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ErrorAlert } from '@/components/error-alert'
 import { MatrixInput } from '@/components/matrix-input'
 import { MatrixTable } from '@/components/matrix-table'
+import { ResultsBoundary } from '@/components/results-boundary'
 import { SectionCard } from '@/components/section-card'
 import { StatisticsView } from '@/components/statistics-view'
 import { Button } from '@/components/ui/button'
@@ -106,7 +107,7 @@ export function QrPanel({ config }: { config: AppConfig }) {
 
       {loading && !data && <Skeleton className="h-48 w-full rounded-xl" />}
       {data && (
-        <>
+        <ResultsBoundary resetKey={data}>
           <SectionCard
             step={2}
             title={t('qr.statisticsTitle')}
@@ -137,7 +138,7 @@ export function QrPanel({ config }: { config: AppConfig }) {
               />
             </div>
           </SectionCard>
-        </>
+        </ResultsBoundary>
       )}
     </div>
   )

@@ -4,12 +4,26 @@ export const es: Translation = {
   app: {
     name: 'Matrix QR',
     tagline: 'Herramientas de factorización QR',
-    description:
-      'Calcula la factorización QR de una matriz y las estadísticas del resultado.',
     signIn: 'Iniciar sesión',
     loginError: 'Error de inicio de sesión',
     loading: 'Cargando',
     toggleSidebar: 'Mostrar u ocultar la barra lateral',
+  },
+  signIn: {
+    tagline: 'Calcula la factorización QR y las estadísticas de una matriz',
+    secureHint:
+      'Inicio de sesión seguro con Logto: te redirigimos y volverás aquí',
+    waiting: 'Redirigiendo a la página segura de inicio de sesión...',
+    waitingShort: 'Redirigiendo...',
+    errorTitle: 'Problema al iniciar sesión',
+    failed:
+      'No pudimos iniciar el proceso de inicio de sesión. Inténtalo de nuevo.',
+  },
+  callback: {
+    completing: 'Completando el inicio de sesión...',
+    failedTitle: 'Problema al iniciar sesión',
+    failed: 'No pudimos completar el inicio de sesión. Inténtalo de nuevo.',
+    back: 'Volver al inicio',
   },
   sidebar: {
     tools: 'Herramientas',
@@ -38,7 +52,7 @@ export const es: Translation = {
       label: 'API y token',
       title: 'API y token',
       description:
-        'Revisa o copia el token de acceso para probar las APIs a mano.',
+        'Revisa o copia el ID token (el Bearer token) para probar las APIs a mano.',
     },
   },
   qr: {
@@ -119,14 +133,14 @@ export const es: Translation = {
     unreachable: 'Inaccesible',
   },
   developer: {
-    title: 'Token de acceso',
+    title: 'ID token',
     description:
       'Copia un token nuevo para llamar a las APIs desde Postman o Swagger. El token nunca se muestra.',
-    copy: 'Copiar token de acceso',
+    copy: 'Copiar ID token',
     showClaims: 'Mostrar claims',
-    couldNotGet: 'No se pudo obtener un token de acceso.',
-    copied: 'Token de acceso copiado al portapapeles.',
-    couldNotCopy: 'No se pudo copiar el token de acceso.',
+    couldNotGet: 'No se pudo obtener el ID token.',
+    copied: 'ID token copiado al portapapeles.',
+    couldNotCopy: 'No se pudo copiar el ID token.',
     unknown: 'desconocido',
     expired: 'vencido',
     secondsLeft: 'faltan {{seconds}} s',
@@ -136,6 +150,10 @@ export const es: Translation = {
     body: 'Define estas variables en .env.local (ver .env.example) y reinicia el servidor de desarrollo:',
   },
   errors: {
+    renderTitle: 'No se pudieron mostrar los resultados',
+    renderBody:
+      'Algo falló al mostrar este resultado. Tus datos están a salvo: inténtalo de nuevo.',
+    renderRetry: 'Reintentar',
     clientValidation: 'Entrada inválida',
     serverMessage: 'Mensaje del servidor',
     titles: {
@@ -152,7 +170,7 @@ export const es: Translation = {
       NETWORK_ERROR:
         'No se puede acceder a la API. ¿Está en ejecución y CORS permite este origen?',
       TOKEN_ERROR:
-        'No se pudo obtener un token de acceso. Cierra sesión y vuelve a entrar.',
+        'No se pudo obtener el ID token. Cierra sesión y vuelve a entrar.',
       INVALID_JSON: 'El cuerpo de la solicitud no es JSON válido.',
       INVALID_MATRIX: 'La matriz es inválida.',
       PAYLOAD_TOO_LARGE: 'El contenido es demasiado grande.',
@@ -164,7 +182,7 @@ export const es: Translation = {
     fallback: {
       '400': 'Solicitud mal formada (JSON inválido).',
       '401': 'No autorizado: el token falta, es inválido o venció.',
-      '403': 'Prohibido: el token no tiene el scope requerido.',
+      '403': 'Prohibido: acceso denegado.',
       '413': 'El contenido es demasiado grande.',
       '422': 'La matriz es inválida.',
       '502': 'La API de destino (node-api) no está disponible.',

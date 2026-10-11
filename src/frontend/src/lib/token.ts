@@ -1,6 +1,6 @@
 export interface TokenClaims {
   aud?: string | string[]
-  scope?: string
+  iss?: string
   exp?: number
   [claim: string]: unknown
 }
@@ -16,4 +16,15 @@ export function decodeJwtClaims(token: string): TokenClaims | null {
   } catch {
     return null
   }
+}
+
+/** True when the JWT is expired or about to be (default margin: 30 s), or cannot be read. */
+export function isExpiring(
+  token: string,
+  nowMs = Date.now(),
+  marginSeconds = 30,
+): boolean {
+  const exp = decodeJwtClaims(token)?.exp
+  if (typeof exp !== 'number') return true
+  return exp * 1000 - nowMs <= marginSeconds * 1000
 }

@@ -1,6 +1,7 @@
-import { useAuth0 } from '@auth0/auth0-react'
-import { Grid2x2, LogIn, LogOut } from 'lucide-react'
+import { useLogto } from '@logto/react'
+import { Loader2, LogIn, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { AppLogo } from '@/components/app-logo'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,6 +17,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
+import { useSignIn } from '@/hooks/use-sign-in'
+import { useUserProfile } from '@/hooks/use-user-profile'
 import { VIEWS, type ViewId } from '@/lib/views'
 
 interface AppSidebarProps {
@@ -27,8 +30,9 @@ const GROUPS = ['tools', 'developer'] as const
 
 export function AppSidebar({ current, onNavigate }: AppSidebarProps) {
   const { t } = useTranslation()
-  const { isAuthenticated, isLoading, user, loginWithRedirect, logout } =
-    useAuth0()
+  const signIn = useSignIn()
+  const { isAuthenticated, isLoading, signOut } = useLogto()
+  const user = useUserProfile()
 
   return (
     <Sidebar variant="inset" collapsible="icon">
@@ -36,9 +40,7 @@ export function AppSidebar({ current, onNavigate }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="pointer-events-none">
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
-                <Grid2x2 aria-hidden />
-              </div>
+              <AppLogo size={32} className="text-sidebar-primary" />
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate font-semibold">{t('app.name')}</span>
                 <span className="text-sidebar-foreground/70 truncate text-xs">
@@ -97,24 +99,24 @@ export function AppSidebar({ current, onNavigate }: AppSidebarProps) {
               aria-label={t('sidebar.logout')}
               title={t('sidebar.logout')}
               className="group-data-[collapsible=icon]:hidden"
-              onClick={() =>
-                void logout({
-                  logoutParams: { returnTo: window.location.origin },
-                })
-              }
+              onClick={() => void signOut(window.location.origin)}
             >
               <LogOut aria-hidden />
             </Button>
           </div>
         ) : (
           <Button
-            disabled={isLoading}
+            disabled={isLoading || signIn.pending}
             aria-label={t('sidebar.login')}
-            onClick={() => void loginWithRedirect()}
+            onClick={signIn.start}
           >
-            <LogIn aria-hidden />
+            {signIn.pending ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : (
+              <LogIn aria-hidden />
+            )}
             <span className="group-data-[collapsible=icon]:hidden">
-              {t('sidebar.login')}
+              {signIn.pending ? t('signIn.waitingShort') : t('sidebar.login')}
             </span>
           </Button>
         )}

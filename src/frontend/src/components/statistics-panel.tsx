@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorAlert } from '@/components/error-alert'
+import { ResultsBoundary } from '@/components/results-boundary'
 import { SectionCard } from '@/components/section-card'
 import { StatisticsView } from '@/components/statistics-view'
 import { Button } from '@/components/ui/button'
@@ -66,13 +67,15 @@ export function StatisticsPanel({ config }: { config: AppConfig }) {
 
       {loading && !data && <Skeleton className="h-40 w-full rounded-xl" />}
       {data && (
-        <SectionCard
-          step={2}
-          title={t('statisticsPanel.resultTitle')}
-          description={t('statisticsPanel.resultDescription')}
-        >
-          <StatisticsView statistics={data} />
-        </SectionCard>
+        <ResultsBoundary resetKey={data}>
+          <SectionCard
+            step={2}
+            title={t('statisticsPanel.resultTitle')}
+            description={t('statisticsPanel.resultDescription')}
+          >
+            <StatisticsView statistics={data} />
+          </SectionCard>
+        </ResultsBoundary>
       )}
     </div>
   )

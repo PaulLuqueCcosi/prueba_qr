@@ -1,4 +1,4 @@
-import { Auth0Provider } from '@auth0/auth0-react'
+import { LogtoProvider } from '@logto/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
@@ -6,7 +6,7 @@ import './i18n'
 import App from './App.tsx'
 import { ThemeProvider } from './components/theme-provider.tsx'
 import { ConfigError } from './components/config-error.tsx'
-import { readConfig, SCOPES } from './lib/config.ts'
+import { buildLogtoConfig, readConfig } from './lib/config.ts'
 
 const result = readConfig(import.meta.env)
 
@@ -16,19 +16,10 @@ createRoot(document.getElementById('root')!).render(
       {'missing' in result ? (
         <ConfigError missing={result.missing} />
       ) : (
-        <Auth0Provider
-          domain={result.config.auth0Domain}
-          clientId={result.config.auth0ClientId}
-          // Memory cache: no tokens in localStorage (lost on refresh, which is fine for a test tool).
-          cacheLocation="memory"
-          authorizationParams={{
-            redirect_uri: window.location.origin,
-            audience: result.config.auth0Audience,
-            scope: SCOPES,
-          }}
-        >
+        // PKCE authorization-code flow; the SDK keeps tokens in browser storage.
+        <LogtoProvider config={buildLogtoConfig(result.config)}>
           <App config={result.config} />
-        </Auth0Provider>
+        </LogtoProvider>
       )}
     </ThemeProvider>
   </StrictMode>,

@@ -4,9 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HealthPanel } from './health-panel'
 
 const config = {
-  auth0Domain: 'd',
-  auth0ClientId: 'c',
-  auth0Audience: 'a',
+  logtoEndpoint: 'https://logto.test',
+  logtoAppId: 'app',
   goApiUrl: 'http://go.test',
   nodeApiUrl: 'http://node.test',
 }

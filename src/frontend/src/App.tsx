@@ -1,22 +1,15 @@
-import { useAuth0 } from '@auth0/auth0-react'
-import { Grid2x2 } from 'lucide-react'
+import { useLogto } from '@logto/react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AppSidebar } from '@/components/app-sidebar'
 import { LanguageSwitcher, ThemeToggle } from '@/components/preferences-toolbar'
+import { SignInCallback } from '@/components/sign-in-callback'
+import { SignInScreen } from '@/components/sign-in-screen'
 import { HealthPanel } from '@/components/health-panel'
 import { DeveloperPanel } from '@/components/developer-panel'
 import { QrPanel } from '@/components/qr-panel'
 import { StatisticsPanel } from '@/components/statistics-panel'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import {
   SidebarInset,
@@ -25,33 +18,22 @@ import {
 } from '@/components/ui/sidebar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import type { AppConfig } from '@/lib/config'
+import { CALLBACK_PATH, type AppConfig } from '@/lib/config'
 import { VIEWS, type ViewId } from '@/lib/views'
-
-function SignedOutCard() {
-  const { t } = useTranslation()
-  const { loginWithRedirect } = useAuth0()
-  return (
-    <Card className="mx-auto mt-12 w-full max-w-md text-center">
-      <CardHeader className="items-center justify-items-center">
-        <div className="bg-primary text-primary-foreground mb-2 flex size-10 items-center justify-center rounded-lg">
-          <Grid2x2 aria-hidden />
-        </div>
-        <CardTitle className="text-lg">{t('app.name')}</CardTitle>
-        <CardDescription>{t('app.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button className="w-full" onClick={() => void loginWithRedirect()}>
-          {t('app.signIn')}
-        </Button>
-      </CardContent>
-    </Card>
-  )
-}
 
 export default function App({ config }: { config: AppConfig }) {
   const { t } = useTranslation()
-  const { isAuthenticated, isLoading, error } = useAuth0()
+  const { isAuthenticated, isLoading, error } = useLogto()
+  // No router in this app: /callback is the only route, handled until the code exchange ends.
+  const [onCallback, setOnCallback] = useState(
+    () => window.location.pathname === CALLBACK_PATH,
+  )
+  // Logto's useLogto() flips `isLoading` on for every token call (getIdToken,
+  // getIdTokenClaims...). Treating that as "app loading" would unmount the panels
+  // mid-request and throw away their results, so the skeleton is only for the
+  // initial load: once loading has finished once, it never comes back.
+  const [ready, setReady] = useState(false)
+  if (!ready && !isLoading) setReady(true)
   const [view, setView] = useState<ViewId>('qr')
   const current = (VIEWS.find((v) => v.id === view) ?? VIEWS[0]).id
 
@@ -80,13 +62,15 @@ export default function App({ config }: { config: AppConfig }) {
             </div>
           </header>
           <main className="w-full min-w-0 space-y-6 p-4 md:p-6">
-            {error && (
+            {error && !onCallback && (
               <Alert variant="destructive">
                 <AlertTitle>{t('app.loginError')}</AlertTitle>
                 <AlertDescription>{error.message}</AlertDescription>
               </Alert>
             )}
-            {isLoading ? (
+            {onCallback ? (
+              <SignInCallback onDone={() => setOnCallback(false)} />
+            ) : !ready ? (
               <div
                 className="space-y-4"
                 aria-busy="true"
@@ -96,7 +80,7 @@ export default function App({ config }: { config: AppConfig }) {
                 <Skeleton className="h-64 w-full rounded-xl" />
               </div>
             ) : !isAuthenticated ? (
-              <SignedOutCard />
+              <SignInScreen />
             ) : view === 'qr' ? (
               <QrPanel config={config} />
             ) : view === 'statistics' ? (

@@ -8,7 +8,7 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
-  // The Auth0 SPA only allows http://localhost:5173 as callback/origin,
+  // The Logto app only allows http://localhost:5173 as callback/origin,
   // so we must fail instead of silently moving to another port.
   server: { port: 5173, strictPort: true },
   test: {
