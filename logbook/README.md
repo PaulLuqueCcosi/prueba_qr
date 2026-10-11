@@ -9,3 +9,5 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [03](03-mvp-answers.md) | Respuestas del MVP | 2026-10-11 | Análisis |
 | [04](04-node-api-mvp.md) | node-api: versión mínima funcional | 2026-10-11 | 1 |
 | [05](05-go-api-mvp.md) | go-api: versión mínima funcional | 2026-10-11 | 1 |
+| [06](06-frontend-scope.md) | Alcance del frontend | 2026-10-11 | 2 |
+| [07](07-automated-tests.md) | Pruebas automatizadas | 2026-10-11 | 2 |
