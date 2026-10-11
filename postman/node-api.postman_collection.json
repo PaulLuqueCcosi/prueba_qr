@@ -1,0 +1,1040 @@
+{
+  "info": {
+    "name": "node-api",
+    "description": "Automated tests for node-api (statistics service). Run with newman.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Health check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.status).to.eql('ok');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{nodeApiUrl}}/health",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 Valid 2x2 (q diagonal)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.max).to.eql(7);",
+              "  pm.expect(json.min).to.eql(0);",
+              "  pm.expect(json.average).to.be.closeTo(2.5, 1e-9);",
+              "  pm.expect(json.sum).to.be.closeTo(30, 1e-9);",
+              "  pm.expect(json.isDiagonal).to.eql({\"original\":false,\"q\":true,\"r\":false});",
+              "  pm.expect(json.anyDiagonal).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1,\n        2\n      ],\n      [\n        3,\n        4\n      ]\n    ],\n    \"q\": [\n      [\n        1,\n        0\n      ],\n      [\n        0,\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        5,\n        6\n      ],\n      [\n        0,\n        7\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 Rectangular 3x2 / 3x3 / 3x2",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.max).to.eql(9);",
+              "  pm.expect(json.min).to.eql(0);",
+              "  pm.expect(json.average).to.be.closeTo(2.2857142857142856, 1e-9);",
+              "  pm.expect(json.sum).to.be.closeTo(48, 1e-9);",
+              "  pm.expect(json.isDiagonal).to.eql({\"original\":false,\"q\":true,\"r\":false});",
+              "  pm.expect(json.anyDiagonal).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1,\n        2\n      ],\n      [\n        3,\n        4\n      ],\n      [\n        5,\n        6\n      ]\n    ],\n    \"q\": [\n      [\n        1,\n        0,\n        0\n      ],\n      [\n        0,\n        1,\n        0\n      ],\n      [\n        0,\n        0,\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        9,\n        8\n      ],\n      [\n        0,\n        7\n      ],\n      [\n        0,\n        0\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 All matrices diagonal",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.max).to.eql(3);",
+              "  pm.expect(json.min).to.eql(0);",
+              "  pm.expect(json.average).to.be.closeTo(1, 1e-9);",
+              "  pm.expect(json.sum).to.be.closeTo(12, 1e-9);",
+              "  pm.expect(json.isDiagonal).to.eql({\"original\":true,\"q\":true,\"r\":true});",
+              "  pm.expect(json.anyDiagonal).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        2,\n        0\n      ],\n      [\n        0,\n        3\n      ]\n    ],\n    \"q\": [\n      [\n        1,\n        0\n      ],\n      [\n        0,\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        2,\n        0\n      ],\n      [\n        0,\n        3\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "05 No matrix diagonal",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.max).to.eql(1);",
+              "  pm.expect(json.min).to.eql(1);",
+              "  pm.expect(json.average).to.be.closeTo(1, 1e-9);",
+              "  pm.expect(json.sum).to.be.closeTo(12, 1e-9);",
+              "  pm.expect(json.isDiagonal).to.eql({\"original\":false,\"q\":false,\"r\":false});",
+              "  pm.expect(json.anyDiagonal).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1,\n        1\n      ],\n      [\n        1,\n        1\n      ]\n    ],\n    \"q\": [\n      [\n        1,\n        1\n      ],\n      [\n        1,\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1,\n        1\n      ],\n      [\n        1,\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "06 Off-diagonal 1e-12 is within tolerance (diagonal)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.max).to.eql(1);",
+              "  pm.expect(json.min).to.eql(0);",
+              "  pm.expect(json.average).to.be.closeTo(0.5, 1e-9);",
+              "  pm.expect(json.sum).to.be.closeTo(6, 1e-9);",
+              "  pm.expect(json.isDiagonal).to.eql({\"original\":true,\"q\":true,\"r\":true});",
+              "  pm.expect(json.anyDiagonal).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1,\n        1e-12\n      ],\n      [\n        0,\n        1\n      ]\n    ],\n    \"q\": [\n      [\n        1,\n        0\n      ],\n      [\n        0,\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1,\n        0\n      ],\n      [\n        0,\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 Off-diagonal 1e-6 is above tolerance (not diagonal)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.max).to.eql(1);",
+              "  pm.expect(json.min).to.eql(0);",
+              "  pm.expect(json.average).to.be.closeTo(0.5000000833333333, 1e-9);",
+              "  pm.expect(json.sum).to.be.closeTo(6.000001, 1e-9);",
+              "  pm.expect(json.isDiagonal).to.eql({\"original\":false,\"q\":true,\"r\":true});",
+              "  pm.expect(json.anyDiagonal).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1,\n        0.000001\n      ],\n      [\n        0,\n        1\n      ]\n    ],\n    \"q\": [\n      [\n        1,\n        0\n      ],\n      [\n        0,\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1,\n        0\n      ],\n      [\n        0,\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "08 Negatives and decimals",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.max).to.eql(2.25);",
+              "  pm.expect(json.min).to.eql(-3);",
+              "  pm.expect(json.average).to.be.closeTo(-0.4, 1e-9);",
+              "  pm.expect(json.sum).to.be.closeTo(-2, 1e-9);",
+              "  pm.expect(json.isDiagonal).to.eql({\"original\":false,\"q\":true,\"r\":false});",
+              "  pm.expect(json.anyDiagonal).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        -1.5,\n        2.25\n      ]\n    ],\n    \"q\": [\n      [\n        -3\n      ]\n    ],\n    \"r\": [\n      [\n        0.5,\n        -0.25\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "09 Single element 1x1",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.max).to.eql(5);",
+              "  pm.expect(json.min).to.eql(5);",
+              "  pm.expect(json.average).to.be.closeTo(5, 1e-9);",
+              "  pm.expect(json.sum).to.be.closeTo(15, 1e-9);",
+              "  pm.expect(json.isDiagonal).to.eql({\"original\":true,\"q\":true,\"r\":true});",
+              "  pm.expect(json.anyDiagonal).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        5\n      ]\n    ],\n    \"q\": [\n      [\n        5\n      ]\n    ],\n    \"r\": [\n      [\n        5\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 Empty matrix",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [],\n    \"q\": [\n      [\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11 Empty row",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      []\n    ],\n    \"q\": [\n      [\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "12 Ragged matrix",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1,\n        2\n      ],\n      [\n        3\n      ]\n    ],\n    \"q\": [\n      [\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "13 String value",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1,\n        \"2\"\n      ]\n    ],\n    \"q\": [\n      [\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "14 Null value",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1,\n        null\n      ]\n    ],\n    \"q\": [\n      [\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "15 Matrix is not an array of arrays",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      1,\n      2\n    ],\n    \"q\": [\n      [\n        1\n      ]\n    ],\n    \"r\": [\n      [\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "16 Missing r",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"matrices\": {\n    \"original\": [\n      [\n        1\n      ]\n    ],\n    \"q\": [\n      [\n        1\n      ]\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "17 Missing matrices",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "18 Body is an array",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', () => pm.response.to.have.status(422));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_MATRIX');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "[\n  1,\n  2\n]"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "19 Malformed JSON",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 400', () => pm.response.to.have.status(400));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('INVALID_JSON');",
+              "  pm.expect(json.error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"matrices\":"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "20 Unknown route",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 404', () => pm.response.to.have.status(404));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{nodeApiUrl}}/nope",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "nope"
+          ]
+        }
+      }
+    },
+    {
+      "name": "21 GET on statistics route",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 404', () => pm.response.to.have.status(404));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "22 Payload over 1 MB",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const row = new Array(1500).fill(1.5);",
+              "const big = new Array(1500).fill(row);",
+              "pm.variables.set('bigBody', JSON.stringify({ matrices: { original: big, q: big, r: big } }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 413', () => pm.response.to.have.status(413));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.error.code).to.eql('PAYLOAD_TOO_LARGE');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{bigBody}}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    },
+    {
+      "name": "23 Mid-size payload (3x150x150) is accepted",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const row = new Array(150).fill(1.5);",
+              "const mid = new Array(150).fill(row);",
+              "pm.variables.set('midBody', JSON.stringify({ matrices: { original: mid, q: mid, r: mid } }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('responds with JSON', () => pm.response.to.be.json);",
+              "const json = pm.response.json();",
+              "pm.test('body is as expected', () => {",
+              "  pm.expect(json.sum).to.eql(101250);",
+              "  pm.expect(json.anyDiagonal).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{midBody}}"
+        },
+        "url": {
+          "raw": "{{nodeApiUrl}}/api/v1/statistics",
+          "host": [
+            "{{nodeApiUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "statistics"
+          ]
+        }
+      }
+    }
+  ]
+}
