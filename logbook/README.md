@@ -21,3 +21,4 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [15](15-frontend-branding.md) | Frontend: logo, favicon y metadata | 2026-10-11 | 6 |
 | [16](16-frontend-logto.md) | Frontend: login con Logto y corrección de los resultados | 2026-10-11 | 4 y 6 |
 | [17](17-docker.md) | Docker: una imagen por servicio y docker-compose | 2026-10-11 | 3 |
+| [18](18-cloudflare-frontend.md) | Frontend desplegado en Cloudflare | 2026-10-11 | 5 y 6 |
