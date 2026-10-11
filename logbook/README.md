@@ -22,3 +22,4 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [16](16-frontend-logto.md) | Frontend: login con Logto y corrección de los resultados | 2026-10-11 | 4 y 6 |
 | [17](17-docker.md) | Docker: una imagen por servicio y docker-compose | 2026-10-11 | 3 |
 | [18](18-cloudflare-frontend.md) | Frontend desplegado en Cloudflare | 2026-10-11 | 5 y 6 |
+| [19](19-custom-domain.md) | Dominio propio para el frontend y las APIs | 2026-10-11 | 5 y 6 |
