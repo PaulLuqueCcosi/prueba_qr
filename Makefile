@@ -1,18 +1,28 @@
 # Monorepo task runner (works from Git Bash on Windows, Linux and macOS).
 #
-# Environment variables read by the services (override on the command line,
-# e.g. `make run-go PORT=9090 NODE_API_URL=http://localhost:8081`):
-#   PORT                 listen port. go-api default 8080, node-api default 8081
-#   NODE_API_URL         go-api only: base URL of node-api (default http://localhost:8081)
-#   NODE_API_TIMEOUT_MS  go-api only: timeout of the call to node-api, in ms (default 5000)
-#   DIAGONAL_TOLERANCE   node-api only: diagonal tolerance (default 1e-9)
+# Configuration lives in each service's own `.env` (copy it from `.env.example`):
+#   src/go-api/.env    src/node-api/.env    src/frontend/.env.local
+# The services read plain environment variables; the run-* targets only load that file first.
 
-GO_DIR   := src/go-api
-NODE_DIR := src/node-api
+GO_DIR       := src/go-api
+NODE_DIR     := src/node-api
+FRONTEND_DIR := src/frontend
 
-.PHONY: test test-go test-node lint lint-go lint-node run-node run-go check
+# Loads <dir>/.env into the environment of the command that follows; fails with a hint if it is missing.
+load_env = test -f .env || { echo "Missing $(1)/.env: cp $(1)/.env.example $(1)/.env"; exit 1; }; set -a; . ./.env; set +a
 
-test: test-go test-node
+.PHONY: run-go run-node run-frontend test test-go test-node test-frontend lint lint-go lint-node lint-frontend check
+
+run-go:
+	cd $(GO_DIR) && $(call load_env,$(GO_DIR)) && go run ./cmd/server
+
+run-node:
+	cd $(NODE_DIR) && $(call load_env,$(NODE_DIR)) && npm run dev
+
+run-frontend:
+	cd $(FRONTEND_DIR) && npm run dev
+
+test: test-go test-node test-frontend
 
 test-go:
 	cd $(GO_DIR) && go test ./...
@@ -20,7 +30,10 @@ test-go:
 test-node:
 	cd $(NODE_DIR) && npm test
 
-lint: lint-go lint-node
+test-frontend:
+	cd $(FRONTEND_DIR) && npm test
+
+lint: lint-go lint-node lint-frontend
 
 lint-go:
 	@cd $(GO_DIR) && out="$$(gofmt -l .)" && if [ -n "$$out" ]; then echo "gofmt needed on:"; echo "$$out"; exit 1; fi
@@ -29,11 +42,8 @@ lint-go:
 lint-node:
 	cd $(NODE_DIR) && npm run lint
 
-run-node:
-	cd $(NODE_DIR) && npm run dev
-
-run-go:
-	cd $(GO_DIR) && go run ./cmd/server
+lint-frontend:
+	cd $(FRONTEND_DIR) && npm run lint
 
 check: lint test
 	cd $(GO_DIR) && bash scripts/check_dependency_rule.sh

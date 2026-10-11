@@ -14,3 +14,4 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [08](08-node-api-jwt.md) | node-api: autenticación con JWT de Auth0 | 2026-10-11 | 4 |
 | [09](09-go-api-jwt.md) | go-api: autenticación con JWT y reenvío del token | 2026-10-11 | 4 |
 | [10](10-frontend.md) | Frontend con login de Auth0 y sidebar | 2026-10-11 | 6 |
+| [11](11-per-service-config.md) | Configuración por servicio y Makefile simplificado | 2026-10-11 | 4 y 6 |
