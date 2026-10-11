@@ -1,0 +1,93 @@
+# Local stack: go-api, node-api and the frontend, hardened as they would be in a cloud runtime.
+# Run it with `make docker-up` (it passes src/frontend/.env.local for the frontend build args).
+# Service config comes from each service's own .env (public values only, gitignored).
+
+x-hardening: &hardening
+  init: true # tini as PID 1: forwards signals and reaps zombies
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 200
+  networks: [matrix]
+
+services:
+  node-api:
+    <<: *hardening
+    build:
+      context: ./src/node-api
+    image: matrix-qr/node-api:local
+    env_file: ./src/node-api/.env
+    environment:
+      PORT: "8081"
+    ports:
+      - "8081:8081"
+    tmpfs:
+      - /tmp
+    mem_limit: 256m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health >/dev/null"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  go-api:
+    <<: *hardening
+    build:
+      context: ./src/go-api
+    image: matrix-qr/go-api:local
+    env_file: ./src/go-api/.env
+    environment:
+      PORT: "8080"
+      # Inside Docker, node-api is reached by service name, never localhost.
+      NODE_API_URL: http://node-api:8081
+    ports:
+      - "8080:8080"
+    tmpfs:
+      - /tmp
+    mem_limit: 128m
+    cpus: 1.0
+    depends_on:
+      node-api:
+        condition: service_healthy
+    healthcheck:
+      # Distroless has no shell: the probe is the small Go binary built into the image.
+      test: ["CMD", "/healthcheck"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  frontend:
+    <<: *hardening
+    build:
+      context: ./src/frontend
+      # No hardcoded values: they come from src/frontend/.env.local via `--env-file`.
+      args:
+        VITE_LOGTO_ENDPOINT: ${VITE_LOGTO_ENDPOINT:?set it in src/frontend/.env.local and use --env-file}
+        VITE_LOGTO_APP_ID: ${VITE_LOGTO_APP_ID:?set it in src/frontend/.env.local and use --env-file}
+        VITE_GO_API_URL: ${VITE_GO_API_URL:-http://localhost:8080}
+        VITE_NODE_API_URL: ${VITE_NODE_API_URL:-http://localhost:8081}
+    image: matrix-qr/frontend:local
+    ports:
+      # Host 5173 is the origin registered in Logto (redirect URI http://localhost:5173/callback).
+      - "5173:8080"
+    tmpfs:
+      - /tmp
+    mem_limit: 128m
+    cpus: 0.5
+    depends_on:
+      go-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+networks:
+  matrix:
+    driver: bridge

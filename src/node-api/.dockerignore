@@ -1,0 +1,16 @@
+# Keep the build context small and free of local secrets/artifacts.
+node_modules
+dist
+coverage
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+*.log
+README.md
+scripts
+Dockerfile
+.dockerignore
+eslint.config.js
+vitest.config.ts
