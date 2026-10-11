@@ -18,3 +18,4 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [12](12-frontend-ux-i18n-theme.md) | Frontend: grilla de matriz, resultados, health, i18n y tema | 2026-10-11 | 6 |
 | [13](13-node-api-logto.md) | node-api: validación del ID token de Logto | 2026-10-11 | 4 |
 | [14](14-go-api-logto.md) | go-api: validación del ID token de Logto y reenvío a node-api | 2026-10-11 | 4 |
+| [15](15-frontend-branding.md) | Frontend: logo, favicon y metadata | 2026-10-11 | 6 |

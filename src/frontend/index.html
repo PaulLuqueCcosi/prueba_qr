@@ -3,8 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Matrix QR</title>
+    <title>Matrix QR | QR factorization and matrix statistics</title>
+    <meta
+      name="description"
+      content="Compute the QR factorization of a matrix and the statistics of the result: max, min, average, total sum and diagonal checks."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#ffffff"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#0a0a0a"
+    />
+    <!-- No canonical/og:url on purpose: there is no production domain yet. -->
+    <!-- Link previews need an absolute og:image URL; update it when the domain exists. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Matrix QR" />
+    <meta property="og:title" content="Matrix QR" />
+    <meta
+      property="og:description"
+      content="Compute the QR factorization of a matrix and the statistics of the result."
+    />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Matrix QR logo: a 3x3 grid with an upper-triangular shape"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Matrix QR" />
+    <meta
+      name="twitter:description"
+      content="Compute the QR factorization of a matrix and the statistics of the result."
+    />
+    <meta name="twitter:image" content="/og-image.png" />
     <script>
       // Applies the saved theme before first paint to avoid a flash of the wrong one.
       // Keep the key and logic in sync with src/lib/theme.ts.
