@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,9 +16,6 @@ const (
 	defaultCORSOrigins   = "http://localhost:5173"
 )
 
-// Hostname only: a scheme or path would silently build a wrong issuer.
-var hostnamePattern = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$`)
-
 type Config struct {
 	Port           int
 	NodeAPIURL     string
@@ -28,13 +24,16 @@ type Config struct {
 	CORSOrigins    []string
 }
 
-// Auth describes the Auth0 tenant whose access tokens are accepted.
+// Auth describes the Logto tenant whose access tokens are accepted.
 type Auth struct {
-	Domain string
-	// Issuer carries the trailing slash because Auth0 puts exactly this string in `iss`.
-	Issuer   string
+	// Endpoint is the tenant origin without trailing slash, e.g. https://<tenant>.logto.app.
+	Endpoint string
+	// Issuer is `<endpoint>/oidc`, without trailing slash: Logto puts exactly this string in `iss`.
+	Issuer string
+	// Audience is the SPA's Logto application id, which Logto sets as the ID token `aud`.
 	Audience string
-	JWKSURL  string
+	// JWKSURL is where the tenant publishes its signing keys (`<endpoint>/oidc/jwks`).
+	JWKSURL string
 }
 
 // Load reads settings through getenv so it is testable without touching the process environment.
@@ -84,22 +83,27 @@ func Load(getenv func(string) string) (Config, error) {
 
 // loadAuth has no defaults: running without auth settings must be impossible (fail closed).
 func loadAuth(getenv func(string) string) (Auth, error) {
-	domain := strings.TrimSpace(getenv("AUTH0_DOMAIN"))
-	if domain == "" {
-		return Auth{}, errors.New("AUTH0_DOMAIN is required")
+	raw := strings.TrimSpace(getenv("LOGTO_ENDPOINT"))
+	if raw == "" {
+		return Auth{}, errors.New("LOGTO_ENDPOINT is required")
 	}
-	if len(domain) > 253 || !hostnamePattern.MatchString(strings.ToLower(domain)) {
-		return Auth{}, fmt.Errorf("AUTH0_DOMAIN must be a hostname without scheme or path, got %q", domain)
+	// Origin only: a path or query would silently build a wrong issuer.
+	u, err := url.Parse(raw)
+	plainOrigin := err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" &&
+		u.User == nil && (u.Path == "" || u.Path == "/") && u.RawQuery == "" && u.Fragment == "" && !u.ForceQuery
+	if !plainOrigin {
+		return Auth{}, fmt.Errorf("LOGTO_ENDPOINT must be a plain origin such as https://<tenant>.logto.app, got %q", raw)
 	}
-	audience := strings.TrimSpace(getenv("AUTH0_AUDIENCE"))
+	audience := strings.TrimSpace(getenv("LOGTO_APP_ID"))
 	if audience == "" {
-		return Auth{}, errors.New("AUTH0_AUDIENCE is required")
+		return Auth{}, errors.New("LOGTO_APP_ID is required")
 	}
+	endpoint := strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Host)
 	return Auth{
-		Domain:   domain,
-		Issuer:   "https://" + domain + "/",
+		Endpoint: endpoint,
+		Issuer:   endpoint + "/oidc",
 		Audience: audience,
-		JWKSURL:  "https://" + domain + "/.well-known/jwks.json",
+		JWKSURL:  endpoint + "/oidc/jwks",
 	}, nil
 }
 

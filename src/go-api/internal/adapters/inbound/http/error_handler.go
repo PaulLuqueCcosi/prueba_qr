@@ -21,7 +21,6 @@ type mappedError struct {
 // stays transport-agnostic.
 func mapError(err error) mappedError {
 	var unauthorized errUnauthorized
-	var forbidden errForbidden
 	switch {
 	case errors.As(err, &unauthorized):
 		// One message for every cause: callers are never told why verification failed.
@@ -30,9 +29,6 @@ func mapError(err error) mappedError {
 			challenge = `Bearer error="invalid_token"`
 		}
 		return mappedError{fiber.StatusUnauthorized, "UNAUTHORIZED", "Authentication required", challenge}
-	case errors.As(err, &forbidden):
-		challenge := `Bearer error="insufficient_scope", scope="` + forbidden.scope + `"`
-		return mappedError{fiber.StatusForbidden, "FORBIDDEN", "Insufficient scope for this resource", challenge}
 	case errors.Is(err, errInvalidJSON):
 		return mappedError{fiber.StatusBadRequest, "INVALID_JSON", "Request body is not valid JSON", ""}
 	case errors.Is(err, domain.ErrInvalidMatrix):

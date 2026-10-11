@@ -4,9 +4,9 @@ import "github.com/gofiber/fiber/v3"
 
 // Private routes run auth first and body-size checks after it, so unauthenticated
 // callers' payloads are never read.
-func registerRoutes(app *fiber.App, qr qrHandler, authenticate, requireQRScope fiber.Handler) {
+func registerRoutes(app *fiber.App, qr qrHandler, authenticate fiber.Handler) {
 	app.Get("/health", healthHandler)
-	app.Post("/api/v1/qr", authenticate, requireQRScope, bodyLimitGuard, qr.Handle)
+	app.Post("/api/v1/qr", authenticate, bodyLimitGuard, qr.Handle)
 	app.Get("/openapi.yaml", openAPIHandler)
 	app.Get("/docs", docsHandler)
 

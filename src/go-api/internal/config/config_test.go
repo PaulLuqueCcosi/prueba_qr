@@ -13,13 +13,13 @@ func env(vars map[string]string) func(string) string {
 }
 
 const (
-	testDomain   = "tenant.example.auth0.com"
-	testAudience = "https://api.example.test"
+	testEndpoint = "https://tenant.example.logto.app"
+	testAudience = "spa-app-id"
 )
 
-// withAuth adds the mandatory Auth0 settings so each test varies only what it checks.
+// withAuth adds the mandatory Logto settings so each test varies only what it checks.
 func withAuth(vars map[string]string) map[string]string {
-	out := map[string]string{"AUTH0_DOMAIN": testDomain, "AUTH0_AUDIENCE": testAudience}
+	out := map[string]string{"LOGTO_ENDPOINT": testEndpoint, "LOGTO_APP_ID": testAudience}
 	for k, v := range vars {
 		out[k] = v
 	}
@@ -72,17 +72,17 @@ func TestLoad_BoundaryPorts_AreAccepted(t *testing.T) {
 	}
 }
 
-func TestLoad_Auth_DerivesIssuerWithTrailingSlashAndJWKSURL(t *testing.T) {
+func TestLoad_Auth_DerivesIssuerAndJWKSURL(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(env(withAuth(nil)))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	want := config.Auth{
-		Domain:   testDomain,
-		Issuer:   "https://tenant.example.auth0.com/",
+		Endpoint: testEndpoint,
+		Issuer:   "https://tenant.example.logto.app/oidc",
 		Audience: testAudience,
-		JWKSURL:  "https://tenant.example.auth0.com/.well-known/jwks.json",
+		JWKSURL:  "https://tenant.example.logto.app/oidc/jwks",
 	}
 	if cfg.Auth != want {
 		t.Fatalf("auth = %+v, want %+v", cfg.Auth, want)
@@ -96,16 +96,15 @@ func TestLoad_MissingOrInvalidAuth_FailsClosed(t *testing.T) {
 		vars    map[string]string
 		wantMsg string
 	}{
-		{"no auth settings at all", map[string]string{}, "AUTH0_DOMAIN"},
-		{"missing domain", map[string]string{"AUTH0_AUDIENCE": testAudience}, "AUTH0_DOMAIN"},
-		{"blank domain", map[string]string{"AUTH0_DOMAIN": "  ", "AUTH0_AUDIENCE": testAudience}, "AUTH0_DOMAIN"},
-		{"domain with scheme", map[string]string{"AUTH0_DOMAIN": "https://tenant.auth0.com", "AUTH0_AUDIENCE": testAudience}, "AUTH0_DOMAIN"},
-		{"domain with path", map[string]string{"AUTH0_DOMAIN": "tenant.auth0.com/x", "AUTH0_AUDIENCE": testAudience}, "AUTH0_DOMAIN"},
-		{"domain with trailing slash", map[string]string{"AUTH0_DOMAIN": "tenant.auth0.com/", "AUTH0_AUDIENCE": testAudience}, "AUTH0_DOMAIN"},
-		{"domain with port", map[string]string{"AUTH0_DOMAIN": "tenant.auth0.com:443", "AUTH0_AUDIENCE": testAudience}, "AUTH0_DOMAIN"},
-		{"domain without dot", map[string]string{"AUTH0_DOMAIN": "localhost", "AUTH0_AUDIENCE": testAudience}, "AUTH0_DOMAIN"},
-		{"missing audience", map[string]string{"AUTH0_DOMAIN": testDomain}, "AUTH0_AUDIENCE"},
-		{"blank audience", map[string]string{"AUTH0_DOMAIN": testDomain, "AUTH0_AUDIENCE": " "}, "AUTH0_AUDIENCE"},
+		{"no auth settings at all", map[string]string{}, "LOGTO_ENDPOINT"},
+		{"missing endpoint", map[string]string{"LOGTO_APP_ID": testAudience}, "LOGTO_ENDPOINT"},
+		{"blank endpoint", map[string]string{"LOGTO_ENDPOINT": "  ", "LOGTO_APP_ID": testAudience}, "LOGTO_ENDPOINT"},
+		{"endpoint without scheme", map[string]string{"LOGTO_ENDPOINT": "tenant.logto.app", "LOGTO_APP_ID": testAudience}, "LOGTO_ENDPOINT"},
+		{"endpoint with path", map[string]string{"LOGTO_ENDPOINT": "https://tenant.logto.app/oidc", "LOGTO_APP_ID": testAudience}, "LOGTO_ENDPOINT"},
+		{"endpoint with query", map[string]string{"LOGTO_ENDPOINT": "https://tenant.logto.app/?a=1", "LOGTO_APP_ID": testAudience}, "LOGTO_ENDPOINT"},
+		{"endpoint with ftp scheme", map[string]string{"LOGTO_ENDPOINT": "ftp://tenant.logto.app", "LOGTO_APP_ID": testAudience}, "LOGTO_ENDPOINT"},
+		{"missing app id", map[string]string{"LOGTO_ENDPOINT": testEndpoint}, "LOGTO_APP_ID"},
+		{"blank app id", map[string]string{"LOGTO_ENDPOINT": testEndpoint, "LOGTO_APP_ID": " "}, "LOGTO_APP_ID"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -191,5 +190,16 @@ func TestLoad_InvalidValues_ReturnDescriptiveError(t *testing.T) {
 				t.Fatalf("error %q should name %s", err, tt.wantMsg)
 			}
 		})
+	}
+}
+
+func TestLoad_Auth_AcceptsATrailingSlashOnTheEndpoint(t *testing.T) {
+	t.Parallel()
+	cfg, err := config.Load(env(withAuth(map[string]string{"LOGTO_ENDPOINT": testEndpoint + "/"})))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Auth.Issuer != "https://tenant.example.logto.app/oidc" {
+		t.Fatalf("issuer = %q", cfg.Auth.Issuer)
 	}
 }

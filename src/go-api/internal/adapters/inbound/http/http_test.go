@@ -63,9 +63,8 @@ func (l *fakeLogger) byLevel(level string) []logEntry {
 // ---- fake token verifier ---------------------------------------------------
 
 const (
-	validToken   = "valid.token.with-scope"
-	noScopeToken = "valid.token.without-scope"
-	testOrigin   = "http://localhost:5173"
+	validToken = "valid.token"
+	testOrigin = "http://localhost:5173"
 )
 
 // fakeVerifier stands in for the JWT adapter: the HTTP layer only cares about
@@ -81,9 +80,7 @@ func (f *fakeVerifier) Verify(_ context.Context, token string) (application.Clai
 	f.mu.Unlock()
 	switch token {
 	case validToken:
-		return application.Claims{Subject: "user|1", Scopes: []string{"openid", "qr:write"}}, nil
-	case noScopeToken:
-		return application.Claims{Subject: "user|2", Scopes: []string{"openid", "statistics:read"}}, nil
+		return application.Claims{Subject: "user|1"}, nil
 	case "key.unavailable.token":
 		return application.Claims{}, &application.TokenError{Kind: application.ErrKeyUnavailable, Reason: "key_unavailable"}
 	case "exploding.verifier.token":
@@ -752,7 +749,7 @@ func TestGetOpenAPI_Returns200YAMLDescribingTheRoutes(t *testing.T) {
 	}
 	// No YAML parser is in the module graph, so check the top-level structure instead.
 	spec := string(body)
-	for _, want := range []string{"openapi: 3.0", "\ninfo:", "\npaths:", "/api/v1/qr:", "/health:", "bearerAuth:", "UNAUTHORIZED", "FORBIDDEN"} {
+	for _, want := range []string{"openapi: 3.0", "\ninfo:", "\npaths:", "/api/v1/qr:", "/health:", "bearerAuth:", "UNAUTHORIZED"} {
 		if !strings.Contains(spec, want) {
 			t.Errorf("spec is missing %q", want)
 		}

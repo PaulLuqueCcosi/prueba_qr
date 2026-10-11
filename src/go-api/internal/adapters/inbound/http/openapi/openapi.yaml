@@ -19,9 +19,9 @@ info:
     `original`, `q` and `r` together. Floating-point noise is expected in `q`,
     `r` and the derived statistics (for example `14.000000000000002`).
 
-    **Authentication.** `POST /api/v1/qr` requires `Authorization: Bearer <access_token>`,
-    an Auth0 JWT (RS256) issued for this API's audience, with the `qr:write` scope.
-    go-api validates the token itself and forwards it to node-api, which validates it
+    **Authentication.** `POST /api/v1/qr` requires `Authorization: Bearer <id_token>`,
+    the signed-in user's Logto **ID token** (JWT signed ES384) issued for the SPA application.
+    Any authenticated user is authorized (there are no scopes). go-api validates the token itself and forwards it to node-api, which validates it
     again. `/health`, `/docs` and `/openapi.yaml` are public.
 
     Every error uses the same body: `{ "error": { "code", "message" } }`.
@@ -41,7 +41,7 @@ paths:
         Calls node-api (`POST /api/v1/statistics`) internally with the caller's own
         token, so a 502 means that service is unreachable or rejected the token.
       security:
-        - bearerAuth: [qr:write]
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -95,8 +95,6 @@ paths:
                   message: Request body is not valid JSON
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '413':
           description: The body is larger than 1 MB.
           content:
@@ -172,8 +170,8 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: |
-        Auth0 access token (RS256) for the audience `https://api.matrix-challenge.dev`.
-        The `qr:write` scope is required on `POST /api/v1/qr`.
+        Logto ID token (ES384) of the signed-in user. The token `aud` must be the SPA
+        application id and `iss` the Logto tenant's `/oidc` issuer.
   responses:
     Unauthorized:
       description: |
@@ -193,21 +191,6 @@ components:
             error:
               code: UNAUTHORIZED
               message: Authentication required
-    Forbidden:
-      description: The token is valid but does not carry the `qr:write` scope.
-      headers:
-        WWW-Authenticate:
-          description: '`Bearer error="insufficient_scope", scope="qr:write"`'
-          schema:
-            type: string
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            error:
-              code: FORBIDDEN
-              message: Insufficient scope for this resource
     NotFound:
       description: |
         Any unknown route (for example `GET /nope`) answers with this shape. It
@@ -305,7 +288,6 @@ components:
               type: string
               enum:
                 - UNAUTHORIZED
-                - FORBIDDEN
                 - INVALID_JSON
                 - INVALID_MATRIX
                 - NON_FINITE_RESULT

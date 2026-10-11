@@ -9,21 +9,15 @@ import (
 	"go-api/internal/application"
 )
 
-const scopeQRWrite = "qr:write"
-
 var bearerHeader = regexp.MustCompile(`(?i)^Bearer ([^\s]+)$`)
 
 type claimsKey struct{}
 
-// errUnauthorized and errForbidden are mapped to 401/403 by the error handler,
-// which also sets WWW-Authenticate, so the logged status is always the sent one.
+// errUnauthorized is mapped to 401 by the error handler, which also sets
+// WWW-Authenticate, so the logged status is always the sent one.
 type errUnauthorized struct{ tokenPresent bool }
 
 func (errUnauthorized) Error() string { return "authentication required" }
-
-type errForbidden struct{ scope string }
-
-func (errForbidden) Error() string { return "insufficient scope" }
 
 // authenticate runs before any body handling: callers without a valid token
 // never get their payload read or parsed.

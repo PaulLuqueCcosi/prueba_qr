@@ -29,18 +29,6 @@ func TestAccessToken_AbsentOrEmpty_IsReportedAsMissing(t *testing.T) {
 	}
 }
 
-func TestClaims_HasScope_MatchesWholeScopesOnly(t *testing.T) {
-	t.Parallel()
-	claims := application.Claims{Scopes: []string{"qr:write", "openid"}}
-
-	if !claims.HasScope("qr:write") {
-		t.Error("qr:write should be granted")
-	}
-	if claims.HasScope("qr") || claims.HasScope("qr:write:all") || claims.HasScope("") {
-		t.Error("partial scope names must not match")
-	}
-}
-
 func TestTokenError_UnwrapsToItsKindAndNamesOnlyTheReason(t *testing.T) {
 	t.Parallel()
 	err := error(&application.TokenError{Kind: application.ErrKeyUnavailable, Reason: "key_unavailable"})

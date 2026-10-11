@@ -2,12 +2,12 @@ package auth_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,28 +22,29 @@ import (
 )
 
 const (
-	testIssuer   = "https://tenant.example.test/"
-	testAudience = "https://api.example.test"
+	testIssuer   = "https://tenant.example.test/oidc"
+	testAudience = "spa-app-id"
 	testKID      = "key-1"
 )
 
 // ---- helpers ---------------------------------------------------------------
 
-func newKey(t *testing.T) *rsa.PrivateKey {
+func newKey(t *testing.T) *ecdsa.PrivateKey {
 	t.Helper()
-	// 2048 bits is the smallest size the JWT library accepts for RS256.
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	// P-384 is the curve behind ES384, the algorithm Logto signs with by default.
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		t.Fatalf("generate key: %v", err)
 	}
 	return key
 }
 
-func jwkJSON(pub *rsa.PublicKey, kid string) map[string]string {
+func jwkJSON(pub *ecdsa.PublicKey, kid string) map[string]string {
+	// Coordinates are fixed-width (48 bytes for P-384), as the JWK spec requires.
 	return map[string]string{
-		"kty": "RSA", "use": "sig", "alg": "RS256", "kid": kid,
-		"n": base64.RawURLEncoding.EncodeToString(pub.N.Bytes()),
-		"e": base64.RawURLEncoding.EncodeToString(big.NewInt(int64(pub.E)).Bytes()),
+		"kty": "EC", "use": "sig", "alg": "ES384", "crv": "P-384", "kid": kid,
+		"x": base64.RawURLEncoding.EncodeToString(pub.X.FillBytes(make([]byte, 48))),
+		"y": base64.RawURLEncoding.EncodeToString(pub.Y.FillBytes(make([]byte, 48))),
 	}
 }
 
@@ -82,12 +83,11 @@ func newVerifier(t *testing.T, jwksURL string) *auth.JWTVerifier {
 // claimsOverride lets each test break exactly one claim of an otherwise valid token.
 func validClaims() jwt.MapClaims {
 	return jwt.MapClaims{
-		"iss":   testIssuer,
-		"aud":   []string{testAudience},
-		"sub":   "auth0|user-1",
-		"scope": "openid qr:write",
-		"iat":   time.Now().Add(-time.Minute).Unix(),
-		"exp":   time.Now().Add(time.Hour).Unix(),
+		"iss": testIssuer,
+		"aud": []string{testAudience},
+		"sub": "user-1",
+		"iat": time.Now().Add(-time.Minute).Unix(),
+		"exp": time.Now().Add(time.Hour).Unix(),
 	}
 }
 
@@ -117,22 +117,19 @@ func assertRejected(t *testing.T, err error, reason string) {
 
 // ---- accepted tokens -------------------------------------------------------
 
-func TestVerify_ValidToken_ReturnsSubjectAndScopes(t *testing.T) {
+func TestVerify_ValidToken_ReturnsSubject(t *testing.T) {
 	t.Parallel()
 	key := newKey(t)
 	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
 	verifier := newVerifier(t, srv.URL)
 
-	claims, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, validClaims()))
+	claims, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, testKID, validClaims()))
 
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if claims.Subject != "auth0|user-1" {
+	if claims.Subject != "user-1" {
 		t.Errorf("subject = %q", claims.Subject)
-	}
-	if !claims.HasScope("qr:write") || !claims.HasScope("openid") || len(claims.Scopes) != 2 {
-		t.Errorf("scopes = %v, want [openid qr:write]", claims.Scopes)
 	}
 }
 
@@ -141,54 +138,18 @@ func TestVerify_AudienceAsSingleStringOrAmongSeveral_IsAccepted(t *testing.T) {
 	key := newKey(t)
 	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
 	verifier := newVerifier(t, srv.URL)
-	// Auth0 adds the /userinfo audience when `openid` is requested.
+	// Logto ID tokens carry the application id as a string; the JWT spec also allows a list.
 	for name, aud := range map[string]any{
 		"string":  testAudience,
-		"several": []string{testAudience, "https://tenant.example.test/userinfo"},
+		"several": []string{testAudience, "another-audience"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			c := validClaims()
 			c["aud"] = aud
-			if _, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, c)); err != nil {
+			if _, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, testKID, c)); err != nil {
 				t.Fatalf("Verify: %v", err)
 			}
 		})
-	}
-}
-
-func TestVerify_TokenWithoutScopeClaim_HasNoScopes(t *testing.T) {
-	t.Parallel()
-	key := newKey(t)
-	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
-	verifier := newVerifier(t, srv.URL)
-	c := validClaims()
-	delete(c, "scope")
-
-	claims, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, c))
-
-	if err != nil {
-		t.Fatalf("Verify: %v", err)
-	}
-	if len(claims.Scopes) != 0 {
-		t.Errorf("scopes = %v, want none", claims.Scopes)
-	}
-}
-
-func TestVerify_ScopeWithExtraWhitespace_IsSplitOnAnyWhitespace(t *testing.T) {
-	t.Parallel()
-	key := newKey(t)
-	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
-	verifier := newVerifier(t, srv.URL)
-	c := validClaims()
-	c["scope"] = "  read:a   qr:write  statistics:read "
-
-	claims, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, c))
-
-	if err != nil {
-		t.Fatalf("Verify: %v", err)
-	}
-	if len(claims.Scopes) != 3 || !claims.HasScope("qr:write") {
-		t.Errorf("scopes = %v", claims.Scopes)
 	}
 }
 
@@ -201,7 +162,7 @@ func TestVerify_ClockSkewWithinLeeway_IsAccepted(t *testing.T) {
 	c["exp"] = time.Now().Add(-2 * time.Second).Unix()
 	c["nbf"] = time.Now().Add(2 * time.Second).Unix()
 
-	if _, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, c)); err != nil {
+	if _, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, testKID, c)); err != nil {
 		t.Fatalf("a few seconds of clock skew must be tolerated: %v", err)
 	}
 }
@@ -213,7 +174,7 @@ func TestVerify_ManyTokensWithTheSameKey_FetchTheJWKSOnlyOnce(t *testing.T) {
 	verifier := newVerifier(t, srv.URL)
 
 	for range 5 {
-		if _, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, validClaims())); err != nil {
+		if _, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, testKID, validClaims())); err != nil {
 			t.Fatalf("Verify: %v", err)
 		}
 	}
@@ -235,15 +196,15 @@ func TestVerify_InvalidTokens_AreRejectedWithAReason(t *testing.T) {
 	tests := []struct {
 		name   string
 		mutate func(jwt.MapClaims)
-		signer *rsa.PrivateKey
+		signer *ecdsa.PrivateKey
 		reason string
 	}{
 		{"expired", func(c jwt.MapClaims) { c["exp"] = time.Now().Add(-time.Minute).Unix() }, key, "expired"},
 		{"not yet valid", func(c jwt.MapClaims) { c["nbf"] = time.Now().Add(time.Minute).Unix() }, key, "not_yet_valid"},
 		{"wrong audience", func(c jwt.MapClaims) { c["aud"] = "https://other.example.test" }, key, "invalid_claims"},
 		{"missing audience", func(c jwt.MapClaims) { delete(c, "aud") }, key, "invalid_claims"},
-		{"wrong issuer", func(c jwt.MapClaims) { c["iss"] = "https://evil.example.test/" }, key, "invalid_claims"},
-		{"issuer without trailing slash", func(c jwt.MapClaims) { c["iss"] = "https://tenant.example.test" }, key, "invalid_claims"},
+		{"wrong issuer", func(c jwt.MapClaims) { c["iss"] = "https://evil.example.test/oidc" }, key, "invalid_claims"},
+		{"issuer with a trailing slash", func(c jwt.MapClaims) { c["iss"] = testIssuer + "/" }, key, "invalid_claims"},
 		{"missing subject", func(c jwt.MapClaims) { delete(c, "sub") }, key, "invalid_claims"},
 		{"empty subject", func(c jwt.MapClaims) { c["sub"] = "" }, key, "invalid_claims"},
 		{"missing expiration", func(c jwt.MapClaims) { delete(c, "exp") }, key, "invalid_claims"},
@@ -254,7 +215,7 @@ func TestVerify_InvalidTokens_AreRejectedWithAReason(t *testing.T) {
 			c := validClaims()
 			tt.mutate(c)
 
-			_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, tt.signer, testKID, c))
+			_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, tt.signer, testKID, c))
 
 			assertRejected(t, err, tt.reason)
 		})
@@ -273,14 +234,14 @@ func TestVerify_AlgNone_IsRejected(t *testing.T) {
 	assertRejected(t, err, "invalid_signature")
 }
 
-// The classic algorithm-confusion attack: HS256 signed with the RSA public key
+// The classic algorithm-confusion attack: HS256 signed with the public key
 // bytes as the HMAC secret.
 func TestVerify_HS256SignedWithThePublicKey_IsRejected(t *testing.T) {
 	t.Parallel()
 	key := newKey(t)
 	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
 	verifier := newVerifier(t, srv.URL)
-	secret := key.PublicKey.N.Bytes()
+	secret := key.PublicKey.X.Bytes()
 	token := sign(t, jwt.SigningMethodHS256, secret, testKID, validClaims())
 
 	_, err := verifier.Verify(context.Background(), token)
@@ -288,15 +249,19 @@ func TestVerify_HS256SignedWithThePublicKey_IsRejected(t *testing.T) {
 	assertRejected(t, err, "invalid_signature")
 }
 
-func TestVerify_OtherRSAAlgorithms_AreRejected(t *testing.T) {
+func TestVerify_UnlistedAlgorithms_AreRejected(t *testing.T) {
 	t.Parallel()
 	key := newKey(t)
 	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
 	verifier := newVerifier(t, srv.URL)
+	key521, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
 
-	_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS512, key, testKID, validClaims()))
+	_, verr := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES512, key521, testKID, validClaims()))
 
-	assertRejected(t, err, "invalid_signature")
+	assertRejected(t, verr, "invalid_signature")
 }
 
 func TestVerify_GarbageTokens_AreRejectedAsMalformed(t *testing.T) {
@@ -304,7 +269,7 @@ func TestVerify_GarbageTokens_AreRejectedAsMalformed(t *testing.T) {
 	key := newKey(t)
 	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
 	verifier := newVerifier(t, srv.URL)
-	valid := sign(t, jwt.SigningMethodRS256, key, testKID, validClaims())
+	valid := sign(t, jwt.SigningMethodES384, key, testKID, validClaims())
 
 	for name, token := range map[string]string{
 		"random text":      "not-a-jwt",
@@ -329,7 +294,7 @@ func TestVerify_UnknownKid_IsRejectedAsInvalidTokenNotKeyUnavailable(t *testing.
 	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
 	verifier := newVerifier(t, srv.URL)
 
-	_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, "rotated-away", validClaims()))
+	_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, "rotated-away", validClaims()))
 
 	assertRejected(t, err, "unknown_key")
 	if errors.Is(err, application.ErrKeyUnavailable) {
@@ -344,7 +309,7 @@ func TestVerify_UnknownKidFlood_RefetchesTheJWKSOnlyOncePerCooldown(t *testing.T
 	verifier := newVerifier(t, srv.URL)
 
 	for i := range 10 {
-		_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, "unknown-"+string(rune('a'+i)), validClaims()))
+		_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, "unknown-"+string(rune('a'+i)), validClaims()))
 		if !errors.Is(err, application.ErrInvalidToken) {
 			t.Fatalf("err = %v, want ErrInvalidToken", err)
 		}
@@ -366,7 +331,7 @@ func TestVerify_JWKSServerDown_ReturnsKeyUnavailable(t *testing.T) {
 	srv.Close()
 	verifier := newVerifier(t, url)
 
-	_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, validClaims()))
+	_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, testKID, validClaims()))
 
 	if !errors.Is(err, application.ErrKeyUnavailable) {
 		t.Fatalf("err = %v, want ErrKeyUnavailable (fail closed)", err)
@@ -385,7 +350,7 @@ func TestVerify_JWKSServerReturns500_ReturnsKeyUnavailable(t *testing.T) {
 	key := newKey(t)
 	verifier := newVerifier(t, srv.URL)
 
-	_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, validClaims()))
+	_, err := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, testKID, validClaims()))
 
 	if !errors.Is(err, application.ErrKeyUnavailable) {
 		t.Fatalf("err = %v, want ErrKeyUnavailable", err)
@@ -409,7 +374,7 @@ func TestVerify_JWKSHangs_FailsWithinTheFetchTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewJWTVerifier: %v", err)
 	}
-	_, verr := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodRS256, key, testKID, validClaims()))
+	_, verr := verifier.Verify(context.Background(), sign(t, jwt.SigningMethodES384, key, testKID, validClaims()))
 
 	if !errors.Is(verr, application.ErrKeyUnavailable) {
 		t.Fatalf("err = %v, want ErrKeyUnavailable", verr)
@@ -424,7 +389,7 @@ func TestVerify_KeysCachedBeforeAnOutage_KeepWorking(t *testing.T) {
 	key := newKey(t)
 	srv, _ := jwksServer(t, jwkJSON(&key.PublicKey, testKID))
 	verifier := newVerifier(t, srv.URL)
-	token := sign(t, jwt.SigningMethodRS256, key, testKID, validClaims())
+	token := sign(t, jwt.SigningMethodES384, key, testKID, validClaims())
 	if _, err := verifier.Verify(context.Background(), token); err != nil {
 		t.Fatalf("warm-up: %v", err)
 	}

@@ -3,17 +3,12 @@ package application
 import (
 	"context"
 	"errors"
-	"slices"
 )
 
-// Claims is the verified identity of a caller; only what authorization needs.
+// Claims is the verified identity of a caller. There are no scopes: any
+// authenticated user is authorized (Logto's Free plan has no API resources).
 type Claims struct {
 	Subject string
-	Scopes  []string
-}
-
-func (c Claims) HasScope(scope string) bool {
-	return slices.Contains(c.Scopes, scope)
 }
 
 // TokenVerifier is an outbound port: it checks a bearer token end to end

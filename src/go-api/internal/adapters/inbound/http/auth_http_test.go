@@ -129,25 +129,9 @@ func TestPostQR_BearerSchemeIsCaseInsensitive(t *testing.T) {
 	}
 }
 
-// ---- authorization ---------------------------------------------------------
+// ---- authorization: any authenticated user is allowed ----------------------
 
-func TestPostQR_ValidTokenWithoutRequiredScope_Returns403WithInsufficientScopeChallenge(t *testing.T) {
-	t.Parallel()
-	s := newStack(t, nil)
-
-	resp, body := postQRWithAuth(t, s.app, validMatrixBody, "Bearer "+noScopeToken)
-
-	env := assertError(t, resp, body, 403, "FORBIDDEN")
-	if env.Error.Message != "Insufficient scope for this resource" {
-		t.Errorf("message = %q", env.Error.Message)
-	}
-	assertChallenge(t, resp, `Bearer error="insufficient_scope", scope="qr:write"`)
-	if s.hits() != 0 {
-		t.Errorf("node-api must not be called without the scope")
-	}
-}
-
-func TestPostQR_ValidTokenWithRequiredScope_Returns200(t *testing.T) {
+func TestPostQR_AnyValidToken_Returns200(t *testing.T) {
 	t.Parallel()
 	s := newStack(t, nil)
 
@@ -199,15 +183,6 @@ func TestPostQR_UnauthenticatedBodies_AreRejectedBeforeBeingParsed(t *testing.T)
 			assertError(t, resp, body, 401, "UNAUTHORIZED")
 		})
 	}
-}
-
-func TestPostQR_BodyWithoutRequiredScope_IsNotParsed(t *testing.T) {
-	t.Parallel()
-	s := newStack(t, nil)
-
-	resp, body := postQRWithAuth(t, s.app, `not json`, "Bearer "+noScopeToken)
-
-	assertError(t, resp, body, 403, "FORBIDDEN")
 }
 
 func TestPostQR_UnauthenticatedOversizedBody_Returns401NotPayloadTooLarge(t *testing.T) {

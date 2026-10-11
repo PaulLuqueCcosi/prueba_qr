@@ -1,4 +1,4 @@
-// Package auth verifies Auth0 access tokens (RS256 JWTs) against a remote JWKS.
+// Package auth verifies Logto ID tokens (ES384 JWTs by default) against a remote JWKS.
 package auth
 
 import (
@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -19,7 +18,7 @@ import (
 
 // Config holds the verification rules and the JWKS cache tuning.
 type Config struct {
-	// Issuer must match the `iss` claim exactly (Auth0 uses a trailing slash).
+	// Issuer must match the `iss` claim exactly (Logto: `<endpoint>/oidc`, no trailing slash).
 	Issuer   string
 	Audience string
 	JWKSURL  string
@@ -36,7 +35,6 @@ type Config struct {
 
 type tokenClaims struct {
 	jwt.RegisteredClaims
-	Scope string `json:"scope"`
 }
 
 // JWTVerifier implements application.TokenVerifier.
@@ -75,8 +73,9 @@ func NewJWTVerifier(ctx context.Context, cfg Config) (*JWTVerifier, error) {
 	}
 
 	parser := jwt.NewParser(
-		// RS256 only: blocks "none" and HS256-signed-with-the-public-key confusion attacks.
-		jwt.WithValidMethods([]string{"RS256"}),
+		// Asymmetric algorithms only (Logto signs with ES384 by default): blocks "none"
+		// and HS256-signed-with-the-public-key confusion attacks.
+		jwt.WithValidMethods([]string{"ES384", "ES256", "RS256"}),
 		jwt.WithIssuer(cfg.Issuer),
 		jwt.WithAudience(cfg.Audience),
 		jwt.WithLeeway(cfg.Leeway),
@@ -90,11 +89,11 @@ func (v *JWTVerifier) Verify(ctx context.Context, token string) (application.Cla
 	if _, err := v.parser.ParseWithClaims(token, &claims, v.keys.KeyfuncCtx(ctx)); err != nil {
 		return application.Claims{}, v.classify(err)
 	}
-	// Auth0 always sets `sub`; a token without identity is not accepted.
+	// Logto always sets `sub`; a token without identity is not accepted.
 	if claims.Subject == "" {
 		return application.Claims{}, rejected("invalid_claims")
 	}
-	return application.Claims{Subject: claims.Subject, Scopes: strings.Fields(claims.Scope)}, nil
+	return application.Claims{Subject: claims.Subject}, nil
 }
 
 func (v *JWTVerifier) classify(err error) error {

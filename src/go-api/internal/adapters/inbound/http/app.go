@@ -45,7 +45,6 @@ func NewApp(deps Dependencies) *fiber.App {
 
 	registerRoutes(app, qrHandler{factorize: deps.FactorizeMatrix},
 		authenticate(deps.TokenVerifier, deps.Logger),
-		requireScope(scopeQRWrite, deps.Logger),
 	)
 	return app
 }
