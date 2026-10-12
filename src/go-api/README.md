@@ -113,7 +113,7 @@ go test -coverprofile=cover.out ./... && go tool cover -func=cover.out
 go test -coverprofile=cover.out ./... && go tool cover -html=cover.out   # reporte visual
 ```
 
-Desde la raiz del repo: `make test-go` (o `make test` para go-api y node-api, `make check` para lint + pruebas + regla de dependencias).
+Desde la raiz del repo: `make test-go` (o `make test` para las tres piezas). Los targets de `make` corren en Git Bash. El lint y la regla de dependencias se corren en esta carpeta (ver la seccion Verificacion mas abajo).
 
 Convencion: cada `*_test.go` vive junto al codigo que prueba y usa paquete externo (`package x_test`), de modo que solo se ejercita la API publica. Los nombres describen comportamiento (`TestFactorize_WideMatrix_ReconstructsOriginal`).
 

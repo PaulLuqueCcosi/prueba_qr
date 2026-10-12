@@ -1,5 +1,7 @@
 # Despliegue
 
+Expliqué el empaquetado en contenedores en [docker](docker.md); aquí cuento cómo lo desplegué en la nube.
+
 | Componente | Plataforma | URL |
 |---|---|---|
 | go-api | Railway (imagen `pol19/matrix-qr-go-api`) | https://api-go.iampol.dev |

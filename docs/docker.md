@@ -1,6 +1,6 @@
 # Docker
 
-Cada servicio tiene su propia imagen (multi-stage, mínima, sin root) y `docker-compose.yml` levanta los tres para probar todo en local.
+Le di a cada servicio su propia imagen (multi-stage, mínima, sin root) y uso `docker-compose.yml` para levantar los tres y probar todo en local.
 
 | Servicio | Contexto | Imagen final | Puerto en el contenedor | Puerto en el host |
 |---|---|---|---|---|
@@ -49,11 +49,10 @@ Requisitos: Docker con Compose v2, y los archivos locales `src/go-api/.env`, `sr
 
 Todos los servicios: `read_only: true` (+ `tmpfs: /tmp`), `cap_drop: [ALL]`, `no-new-privileges`, usuario no root, `init: true`, `pids_limit`, límites de memoria y CPU, `restart: unless-stopped`, red propia (`matrix`) y healthchecks con `interval`/`timeout`/`retries`/`start_period`. `depends_on` con `condition: service_healthy`: frontend → go-api → node-api.
 
-## Notas para la fase 5 (AWS Lambda con imágenes de contenedor)
+## Preparadas para la nube
 
-- Los servidores ya son sin estado, toman el puerto de `PORT`, escriben logs JSON a stdout y tienen `GET /health`: es lo que necesita **Lambda Web Adapter**. El adaptador **todavía no está añadido**; en la fase 5 se copia como extensión (`COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter … /lambda-adapter /opt/extensions/`) y se ajusta `AWS_LWA_PORT`/`AWS_LWA_READINESS_CHECK_PATH=/health`.
-- Lambda no usa el `HEALTHCHECK` de Docker ni `restart`; esas partes son solo para Compose.
-- El sistema de archivos de Lambda es de solo lectura salvo `/tmp`: las imágenes ya funcionan así.
-- El frontend no tiene por qué ir en Lambda (S3 + CloudFront es lo habitual); la imagen nginx es para el entorno local.
-- Como los `VITE_*` se incrustan al compilar, en la nube hay que compilar el frontend con las URLs públicas de las APIs y registrar su origen en Logto.
-- Imágenes de arquitectura: construir para la arquitectura de Lambda (`--platform linux/arm64` o `linux/amd64`).
+Diseñé las imágenes de las APIs como **cloud-ready**, independientemente del proveedor: sin estado, toman el puerto de `PORT`, escriben logs JSON a stdout, exponen `GET /health` y funcionan con el sistema de archivos de solo lectura (salvo `/tmp`). El despliegue real lo hice en **Railway** (APIs) y **Cloudflare** (frontend): ver [despliegue](deployment.md).
+
+Un par de notas que aplican a cualquier nube:
+- El frontend incrusta las variables `VITE_*` **al compilar**, así que en la nube hay que construirlo con las URLs públicas de las APIs y registrar su origen en Logto.
+- El `HEALTHCHECK` de Docker y `restart` de Compose son para el entorno local; en la nube cada plataforma gestiona el health y el reinicio a su manera.

@@ -23,3 +23,5 @@ Registro cronológico de cómo se construyó la solución. Este archivo es el í
 | [17](17-docker.md) | Docker: una imagen por servicio y docker-compose | 2026-10-11 | 3 |
 | [18](18-cloudflare-frontend.md) | Frontend desplegado en Cloudflare | 2026-10-11 | 5 y 6 |
 | [19](19-custom-domain.md) | Dominio propio para el frontend y las APIs | 2026-10-11 | 5 y 6 |
+| [20](20-frontend-grid-json.md) | Tope de matriz a 100x100 y carga por JSON | 2026-10-11 | 6 |
+| [21](21-docs-readme-primera-persona.md) | README enfocado en decisiones, docs en primera persona y diagramas Mermaid | 2026-10-11 | 6 |

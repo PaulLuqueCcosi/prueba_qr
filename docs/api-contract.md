@@ -1,11 +1,19 @@
 # Contrato de las APIs
 
-Borrador para la Fase 1, basado en las respuestas del MVP (`docs/mvp-questions.md`). Los nombres de campos van en inglés y son los mismos en ambas APIs.
+Este es el contrato de los endpoints de ambas APIs. Mantuve los nombres de campos en inglés e iguales en las dos. La versión ejecutable es la spec OpenAPI de cada servicio (`GET /openapi.yaml`, Swagger UI en `GET /docs`); mantengo este documento y esas specs alineados.
+
+Relacionado: [arquitectura](architecture.md) · [seguridad y JWT](security-jwt.md) · [pruebas](testing.md).
 
 ## Flujo
-```
-cliente ──POST /api/v1/qr──▶ go-api ──POST /api/v1/statistics──▶ node-api
-        ◀── original, q, r, statistics ──┘◀──── statistics ──────┘
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant G as go-api
+    participant N as node-api
+    C->>G: POST /api/v1/qr { matrix }
+    G->>N: POST /api/v1/statistics { original, q, r }
+    N-->>G: { statistics }
+    G-->>C: { original, q, r, statistics }
 ```
 Cada API también puede llamarse por separado.
 
@@ -57,7 +65,9 @@ Response `200`: el objeto `statistics` de arriba.
 Response `200`: `{ "status": "ok" }`
 
 ## Autenticación (JWT de Logto)
-Las rutas protegidas (`POST /api/v1/qr` en go-api y `POST /api/v1/statistics` en node-api) exigen `Authorization: Bearer <id_token>`, donde el token es el **ID token** de Logto del usuario (el plan Free de Logto no permite API resources ni scopes). Cada API valida el token por sí misma: firma ES384 —el algoritmo por defecto de Logto— con las claves públicas JWKS del tenant, `iss` (`<endpoint>/oidc`), `aud` (el Application ID de la SPA, `LOGTO_APP_ID`) y `exp`/`nbf` con 5 s de tolerancia. No hay scopes: cualquier usuario autenticado está autorizado. go-api reenvía el mismo token a node-api.
+Detalle completo del flujo, la validación y el porqué de Logto: [seguridad y JWT](security-jwt.md).
+
+En resumen: las rutas protegidas (`POST /api/v1/qr` en go-api y `POST /api/v1/statistics` en node-api) exigen `Authorization: Bearer <id_token>`, donde el token es el **ID token** de Logto del usuario (el plan Free de Logto no permite API resources ni scopes). Cada API valida el token por sí misma: firma ES384 —el algoritmo por defecto de Logto— con las claves públicas JWKS del tenant, `iss` (`<endpoint>/oidc`), `aud` (el Application ID de la SPA, `LOGTO_APP_ID`) y `exp`/`nbf` con 5 s de tolerancia. No hay scopes: cualquier usuario autenticado está autorizado. go-api reenvía el mismo token a node-api.
 
 Son públicas `GET /health`, `GET /docs`, `GET /openapi.yaml` y los preflight CORS (`OPTIONS`). Si falta o es inválida la configuración de Logto, el servicio no arranca.
 
