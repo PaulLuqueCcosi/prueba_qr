@@ -61,6 +61,7 @@ El enunciado valora *"comunicar y defender las decisiones técnicas"*. Estas son
 | **Arquitectura hexagonal** en ambas APIs | El negocio (QR, estadísticas) se prueba sin levantar servidor ni librerías; cambiar Gonum o Express toca un solo adaptador | Capas MVC acopladas al framework |
 | **QR con Gonum** (y bloque izquierdo para matrices anchas) | Librería numérica estándar y probada; se evita reimplementar álgebra lineal | Implementación propia de Householder: más riesgo de error numérico |
 | **Node en TypeScript** | Tipos en los contratos de datos y menos errores en tiempo de ejecución | JavaScript plano |
+| **Identidad en un proveedor externo** (no en el código) | Las APIs solo verifican el token; no mezclo la gestión de usuarios con la lógica de negocio, coherente con el enfoque de servicios | Implementar emisión de tokens y usuarios dentro de las APIs |
 | **Logto** como proveedor de identidad | Integración sencilla (SDK React + JWKS) y tenant gratuito | Auth0 (integración pesada para una prueba), Cognito (más configuración) |
 | **ID token como Bearer** (sin scopes) | El plan Free de Logto no permite API resources ni scopes; cada API valida el token igualmente | Access token con scopes: requiere plan de pago |
 | **Validación de JWT en cada API** | Defensa en profundidad: node-api no confía en que go-api ya validó | Validar solo en el borde (go-api) |

@@ -68,6 +68,12 @@ curl -X POST http://localhost:8080/api/v1/qr \
   -d '{"matrix":[[12,-51,4],[6,167,-68],[-4,24,-41]]}'
 ```
 
+## Por qué un proveedor de identidad externo
+
+Tomé la decisión consciente de delegar la **gestión de identidad** (registro, login, emisión y rotación de tokens) a un proveedor externo, en lugar de construirla dentro de las APIs. Las APIs no almacenan usuarios ni emiten tokens: solo **verifican** el JWT (firma con JWKS, `iss`, `aud`, `exp`).
+
+Lo hice así para no mezclar la gestión de identidad con la lógica de negocio, en coherencia con el enfoque de servicios: cada API hace una sola cosa (go-api la factorización QR, node-api las estadísticas) y la autenticación es una preocupación transversal que resuelvo en el borde de cada servicio, no en su dominio. Encaja con la arquitectura hexagonal: la verificación del token vive en un adaptador, no en el núcleo (ver *Dónde vive*).
+
 ## Por qué Logto
 
 Evalué Auth0, Amazon Cognito y Logto. Elegí **Logto** por su integración sencilla (SDK de React + JWKS estándar) y su tenant gratuito; Auth0 me resultó pesado de configurar para una prueba y Cognito pedía más montaje. Cuento el cambio de Auth0 a Logto en la bitácora: pasos [`13`](../logbook/13-node-api-logto.md), [`14`](../logbook/14-go-api-logto.md) y [`16`](../logbook/16-frontend-logto.md).
